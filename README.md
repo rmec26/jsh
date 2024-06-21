@@ -20,6 +20,9 @@ Simple api to view/edit JSON Files
   * `opc=verbose` - returns a verbose view of the value
     * Format: `{"value":"<the value>","type":"<type>","keys":["key1",...],"values":["value1",...]},"size":<size>`
     * `values` `keys` and `size` only appear if aplicable for the given value
+* POST `/path+` - gets the processed template in the given path
+  * template functions
+    * `{"$":"<relative path>"}` - returns the value in `<relative path>` relative to the value in `path`
 * PUT `/path+` - creates/updates the value with the body in the given path
   * `opc=json` - treats the given body as a json
   * `opc=text` - treats the given body as a text
@@ -31,3 +34,10 @@ Simple api to view/edit JSON Files
 ## How to Run
 
 Run the command `node <json path> [<port>]`
+
+
+## TODO
+
+* create json if it doesnt exist
+* no file mode, using `-`
+* more template functions

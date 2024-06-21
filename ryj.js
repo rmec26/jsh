@@ -36,13 +36,12 @@ function processLevel(obj, level, lastLevels) {
       return level;
     }
   }
-  throw new Error(`The value ${lastLevels} is not an object/array.`)
+  throw new BadCallError(`The value ${lastLevels} is not an object/array.`)
 }
 
-function processPath(path) {
+function processPath(path, baseObj = root, lastLevels = "root") {
   let parent = null;
-  let obj = root;
-  let lastLevels = "root";
+  let obj = baseObj;
   let level = null;
   for (let p of path) {
     level = processLevel(obj, p, lastLevels);
@@ -50,14 +49,39 @@ function processPath(path) {
     parent = obj;
     obj = obj[level];
     if (obj === undefined) {
-      throw new Error(`The value ${lastLevels} doesn't exist.`)
+      throw new NoValueFoundError(`The value ${lastLevels} doesn't exist.`)
     }
   }
   return { parent, obj, lastLevels, level };
 }
 
-function getValue(path) {
-  return processPath(path).obj;
+function processTemplate(template, baseObj, lastLevels) {
+  if (template && typeof template === "object") {
+    if (template instanceof Array) {
+      return template.forEach(v => processTemplate(v, baseObj, lastLevels));
+    } else {
+      if (template.$ !== undefined) {
+        if (typeof template.$ === "string") {
+          return processPath(template.$.split(".").filter(Boolean), baseObj, lastLevels).obj;
+        } else if (template.$ instanceof Array) {
+          return processPath(template.$, baseObj, lastLevels).obj;
+        }
+      } else {
+        let res = {}
+        for (const [k, v] of Object.entries(template)) {
+          res[k] = processTemplate(v, baseObj, lastLevels)
+        }
+        return res
+      }
+    }
+  }
+  return template
+}
+
+function getTemplateValue(path, template, baseObj, lastLevels) {
+  let templateBase = processPath(path, baseObj, lastLevels).obj;
+
+  return processTemplate(template, templateBase)
 }
 
 function getValueVerbose(path) {
@@ -124,6 +148,7 @@ function deleteValue(path) {
 
 const VALID_OPTIONS = {
   "GET": ["json", "text", "keys", "values", "entries", "type", "size", "verbose"],
+  "POST": ["json"],
   "PUT": ["json", "text"],
   "DELETE": ["json", "text"],
 }
@@ -205,6 +230,16 @@ function startServer(jsonPath, port = "8080") {
                 break;
             }
             break;
+          case "POST":
+            console.log(`Body: ${bodyData}`);
+            try {
+              body = JSON.parse(bodyData);
+            } catch (e) {
+              throw new BadCallError(`Error procesing body: ${e.message}`);
+            }
+            res.writeHead(200, { 'Content-Type': "application/json" });
+            res.write(JSON.stringify(getTemplateValue(path, body)));
+            break;
           case "PUT":
             console.log(`Body: ${bodyData}`);
             switch (opc) {
@@ -267,11 +302,3 @@ let jsonPath = process.argv[2];
 let port = process.argv[3];
 
 startServer(jsonPath, port);
-
-
-
-//TODO
-// proper errors on the processing
-// create json if it doesnt exist
-// no file mode -
-// entries mode?
