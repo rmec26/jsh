@@ -1,4 +1,4 @@
-# REST Your JSON
+# RYJ - REST Your JSON
 
 Simple api to view/edit JSON Files
 
@@ -20,9 +20,7 @@ Simple api to view/edit JSON Files
   * `opc=verbose` - returns a verbose view of the value
     * Format: `{"value":"<the value>","type":"<type>","keys":["key1",...],"values":["value1",...]},"size":<size>`
     * `values` `keys` and `size` only appear if aplicable for the given value
-* POST `/path+` - gets the processed template in the given path
-  * template functions
-    * `{"$":"<relative path>"}` - returns the value in `<relative path>` relative to the value in `path`
+* POST `/path+` - processes the given body as a template in the given path
 * PUT `/path+` - creates/updates the value with the body in the given path
   * `opc=json` - treats the given body as a json
   * `opc=text` - treats the given body as a text

@@ -55,33 +55,99 @@ function processPath(path, baseObj = root, lastLevels = "root") {
   return { parent, obj, lastLevels, level };
 }
 
-function processTemplate(template, baseObj, lastLevels) {
+const TEMPLATE_FUNCS = ["$", "$run", "$local", "$list", "$object"]
+
+function processTemplateObj(templateObj, baseObj) {
+  if (!templateObj || typeof templateObj !== "object" || templateObj instanceof Array) {
+    return
+  }
+  try {
+    if (templateObj.$ !== undefined) {// $ function
+      const path = processTemplate(templateObj.$, baseObj);
+      if (typeof path === "string") {
+        return processPath(path.split("."), baseObj).obj;
+      } else if (path instanceof Array) {
+        return processPath(path.map(v => v.toString()), baseObj).obj;
+      }
+    } if (templateObj.$run !== undefined) {// $run function
+      processTemplate(templateObj.$run, baseObj);
+    } if (templateObj.$local !== undefined) {// $local function
+      if (templateObj.$value !== undefined) {
+        const id = templateObj.$local.toString();
+        const value = processTemplate(templateObj.$value, baseObj);
+        baseObj["@local"][id] = value;
+      }
+    } else if (templateObj.$list !== undefined) {// $list function
+      if (templateObj.$body !== undefined) {
+        let obj = processTemplate(templateObj.$list, baseObj);
+        if (obj && typeof obj === "object") {
+          let res = [];
+          Object.entries(obj).forEach(([k, v]) => {
+            const processed = processTemplate(templateObj.$body, { ...baseObj, "@v": v, "@k": k })
+            if (processed !== undefined) {
+              res.push(processed);
+            }
+          });
+          return res;
+        }
+      }
+    } else if (templateObj.$object !== undefined) {// $object function
+      if (templateObj.$body !== undefined) {
+        let obj = processTemplate(templateObj.$object, baseObj);
+        if (obj && typeof obj === "object") {
+          let res = {};
+          Object.entries(obj).forEach(([k, v]) => {
+            const processed = processTemplate(templateObj.$body, { ...baseObj, "@v": v, "@k": k })
+            if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
+              res[processed.k.toString()] = processed.v;
+            }
+          });
+          return res;
+        }
+      }
+    }
+
+  } catch (e) { }
+}
+
+function isTemplateObject(obj) {
+  return TEMPLATE_FUNCS.some(fn => obj[fn] !== undefined);
+}
+
+function processTemplate(template, baseObj) {
   if (template && typeof template === "object") {
     if (template instanceof Array) {
-      return template.forEach(v => processTemplate(v, baseObj, lastLevels));
-    } else {
-      if (template.$ !== undefined) {
-        if (typeof template.$ === "string") {
-          return processPath(template.$.split(".").filter(Boolean), baseObj, lastLevels).obj;
-        } else if (template.$ instanceof Array) {
-          return processPath(template.$, baseObj, lastLevels).obj;
+      let res = [];
+      template.forEach(v => {
+        let processed = processTemplate(v, baseObj);
+        if (processed !== undefined) {
+          res.push(processed);
         }
+      });
+      return res;
+    } else {
+      if (isTemplateObject(template)) {
+        return processTemplateObj(template, baseObj);
       } else {
         let res = {}
         for (const [k, v] of Object.entries(template)) {
-          res[k] = processTemplate(v, baseObj, lastLevels)
+          const processed = processTemplate(v, baseObj);
+          if (processed !== undefined) {
+            res[k] = processed;
+          }
         }
         return res
       }
     }
   }
+  //consider allowing to add values to strings
   return template
 }
 
-function getTemplateValue(path, template, baseObj, lastLevels) {
-  let templateBase = processPath(path, baseObj, lastLevels).obj;
-
-  return processTemplate(template, templateBase)
+function getTemplateValue(path, template) {
+  let templateBase = processPath(path);
+  let result = processTemplate(template, { "@": templateBase.obj, "@root": root, "@local": {} });
+  return result === undefined ? null : result;
 }
 
 function getValueVerbose(path) {
@@ -162,6 +228,7 @@ function startServer(jsonPath, port = "8080") {
     //@ts-ignore
     let urlObj = url.parse(req.url, true);
     //@ts-ignore
+    //TODO fix / not working
     let path = urlObj.pathname.split("/");
     path?.shift();
     //@ts-ignore
