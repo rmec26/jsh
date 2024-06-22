@@ -55,89 +55,89 @@ function processPath(path, baseObj = root, lastLevels = "root") {
   return { parent, obj, lastLevels, level };
 }
 
-const TEMPLATE_FUNCS = ["$", "$run", "$local", "$list", "$object"]
+const templateFuncs = {
+  "$": 1,
+  "$run": 0,
+  "$local": 2,
+  "$list": 2,
+  "$object": 2,
+};
 
-function processTemplateObj(templateObj, baseObj) {
-  if (!templateObj || typeof templateObj !== "object" || templateObj instanceof Array) {
-    return
-  }
+
+function runTemplateFunction(templateFnObj, baseObj) {
   try {
-    if (templateObj.$ !== undefined) {// $ function
-      const path = processTemplate(templateObj.$, baseObj);
+    const [fn, ...args] = templateFnObj;
+    if (fn === "$") {// $ function
+      const path = processTemplate(args[0], baseObj);
       if (typeof path === "string") {
         return processPath(path.split("."), baseObj).obj;
       } else if (path instanceof Array) {
         return processPath(path.map(v => v.toString()), baseObj).obj;
       }
-    } if (templateObj.$run !== undefined) {// $run function
-      processTemplate(templateObj.$run, baseObj);
-    } if (templateObj.$local !== undefined) {// $local function
-      if (templateObj.$value !== undefined) {
-        const id = templateObj.$local.toString();
-        const value = processTemplate(templateObj.$value, baseObj);
-        baseObj["@local"][id] = value;
+    } if (fn === "$run") {// $run function
+      processTemplate(args, baseObj);
+    } if (fn === "$local") {// $local function
+      const id = args[0].toString();
+      const value = processTemplate(args[1], baseObj);
+      baseObj["@local"][id] = value;
+    } else if (fn === "$list") {// $list function
+      let obj = processTemplate(args[0], baseObj);
+      if (obj && typeof obj === "object") {
+        let res = [];
+        Object.entries(obj).forEach(([k, v]) => {
+          const processed = processTemplate(args[1], { ...baseObj, "@v": v, "@k": k })
+          if (processed !== undefined) {
+            res.push(processed);
+          }
+        });
+        return res;
       }
-    } else if (templateObj.$list !== undefined) {// $list function
-      if (templateObj.$body !== undefined) {
-        let obj = processTemplate(templateObj.$list, baseObj);
-        if (obj && typeof obj === "object") {
-          let res = [];
-          Object.entries(obj).forEach(([k, v]) => {
-            const processed = processTemplate(templateObj.$body, { ...baseObj, "@v": v, "@k": k })
-            if (processed !== undefined) {
-              res.push(processed);
-            }
-          });
-          return res;
-        }
-      }
-    } else if (templateObj.$object !== undefined) {// $object function
-      if (templateObj.$body !== undefined) {
-        let obj = processTemplate(templateObj.$object, baseObj);
-        if (obj && typeof obj === "object") {
-          let res = {};
-          Object.entries(obj).forEach(([k, v]) => {
-            const processed = processTemplate(templateObj.$body, { ...baseObj, "@v": v, "@k": k })
-            if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
-              res[processed.k.toString()] = processed.v;
-            }
-          });
-          return res;
-        }
+    } else if (fn === "$object") {// $object function
+      let obj = processTemplate(args[0], baseObj);
+      if (obj && typeof obj === "object") {
+        let res = {};
+        Object.entries(obj).forEach(([k, v]) => {
+          const processed = processTemplate(args[1], { ...baseObj, "@v": v, "@k": k })
+          if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
+            res[processed.k.toString()] = processed.v;
+          }
+        });
+        return res;
       }
     }
-
   } catch (e) { }
 }
 
-function isTemplateObject(obj) {
-  return TEMPLATE_FUNCS.some(fn => obj[fn] !== undefined);
+function isTemplateFunction(obj) {
+  if (obj instanceof Array) {
+    return templateFuncs[obj[0]] && obj.length > templateFuncs[obj[0]]
+  }
 }
 
 function processTemplate(template, baseObj) {
   if (template && typeof template === "object") {
     if (template instanceof Array) {
-      let res = [];
-      template.forEach(v => {
-        let processed = processTemplate(v, baseObj);
-        if (processed !== undefined) {
-          res.push(processed);
-        }
-      });
-      return res;
-    } else {
-      if (isTemplateObject(template)) {
-        return processTemplateObj(template, baseObj);
+      if (isTemplateFunction(template)) {
+        return runTemplateFunction(template, baseObj);
       } else {
-        let res = {}
-        for (const [k, v] of Object.entries(template)) {
-          const processed = processTemplate(v, baseObj);
+        let res = [];
+        template.forEach(v => {
+          let processed = processTemplate(v, baseObj);
           if (processed !== undefined) {
-            res[k] = processed;
+            res.push(processed);
           }
-        }
-        return res
+        });
+        return res;
       }
+    } else {
+      let res = {}
+      for (const [k, v] of Object.entries(template)) {
+        const processed = processTemplate(v, baseObj);
+        if (processed !== undefined) {
+          res[k] = processed;
+        }
+      }
+      return res
     }
   }
   //consider allowing to add values to strings
@@ -228,9 +228,7 @@ function startServer(jsonPath, port = "8080") {
     //@ts-ignore
     let urlObj = url.parse(req.url, true);
     //@ts-ignore
-    //TODO fix / not working
-    let path = urlObj.pathname.split("/");
-    path?.shift();
+    let path = urlObj.pathname.split("/").filter(Boolean);
     //@ts-ignore
     let query = { ...urlObj.query };
     let opc = query.opc ? query.opc.toLowerCase() : "json";
