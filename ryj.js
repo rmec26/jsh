@@ -56,7 +56,7 @@ function processPath(path, baseObj = root, lastLevels = "root") {
 }
 
 const templateFuncs = {
-  "$": {
+  "$get": {
     args: 1, fn: (args, baseObj) => {
       const path = processTemplate(args[0], baseObj);
       if (typeof path === "string") {
@@ -138,7 +138,26 @@ const templateFuncs = {
       return type;
     }
   },
+  "$exists": {
+    args: 1, fn: (args, baseObj) => {
+      try {
+        const path = processTemplate(args[0], baseObj);
+        if (typeof path === "string") {
+          processPath(path.split("."), baseObj);
+          return true
+        } else if (path instanceof Array) {
+          processPath(path.map(v => v.toString()), baseObj);
+          return true
+        }
+      } catch (_) { }
+      return false
+    }
+  },
 };
+
+templateFuncs["$"] = templateFuncs["$get"];
+templateFuncs["$obj"] = templateFuncs["$object"];
+templateFuncs["$lit"] = templateFuncs["$literal"];
 
 
 function runTemplateFunction(templateFnObj, baseObj) {

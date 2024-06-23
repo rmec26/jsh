@@ -17,9 +17,9 @@ Compact - `["$func:value"]`, this only works for one value after the function ca
 
 ## Funtions
 
-### `$`
+### `$get` or `$`
 
-Usage: `["$", path]`
+Usage: `["$get", path]`
 
 Returns the value in the `path` given.
 
@@ -74,7 +74,7 @@ Input:
 
 
 
-### `$object`
+### `$object` or `$obj`
 
 Usage: `["$object", obj, template]`
 
@@ -92,7 +92,7 @@ Input:
 
 
 
-### `$literal`
+### `$literal` or `$lit`
 
 Usage: `["$literal", value]`
 
@@ -130,3 +130,17 @@ Input:
 * `value`: `<template>` - Final value can be any value.
   * for `array` it will return `array` instead of `object`
   * for `null` it will return `null` instead of `object`
+
+
+
+### `$exists`
+
+Usage: `["$exists", path]`
+
+Returns `true` if a value exists in the `path` given, returns `false` otherwise.
+
+Input:
+
+* `path`: `<template>` - Final value should be a `string` or `array`.
+  * the `string` should have the format `@.level1.value`
+  * the `array` should have the format `["@", "level1", "value"]`
