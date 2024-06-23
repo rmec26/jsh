@@ -93,3 +93,32 @@ Returns `value` as is without trying to process any template in it.
 Input:
 
 * `value`: `<any>` - Can be any value, any template ionside it will not be processed.
+
+
+
+### `$size`
+
+Usage: `["$size", value]`
+
+Returns size of `value`.
+
+Input:
+
+* `value`: `<template>` - Final value should be a `object` or `array` or `string`.
+  * for `object` the size will be the amount of properties
+  * for `array` the size will be the amount of values
+  * for `string` the size will be the amount of characters
+
+
+
+### `$type`
+
+Usage: `["$size", value]`
+
+Returns the type of `value`.
+
+Input:
+
+* `value`: `<template>` - Final value can be any value.
+  * for `array` it will return `array` instead of `object`
+  * for `null` it will return `null` instead of `object`

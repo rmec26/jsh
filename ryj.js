@@ -109,8 +109,33 @@ const templateFuncs = {
     }
   },
   "$literal": {
-    args: 1, fn: (args, baseObj) => {
+    args: 1, fn: (args) => {
       return args[0];
+    }
+  },
+  "$size": {
+    args: 1, fn: (args, baseObj) => {
+      let obj = processTemplate(args[0], baseObj);
+      let type = typeof obj;
+      if (obj instanceof Array || type === "string") {
+        return obj.length;
+      } else if (obj && type === "object") {
+        return Object.keys(obj).length;
+      }
+    }
+  },
+  "$type": {
+    args: 1, fn: (args, baseObj) => {
+      let obj = processTemplate(args[0], baseObj);
+      let type = typeof obj;
+      if (type === "object") {
+        if (obj === null) {
+          type = "null";
+        } else if (obj instanceof Array) {
+          type = "array";
+        }
+      }
+      return type;
     }
   },
 };
@@ -165,25 +190,8 @@ function getTemplateValue(path, template) {
   return result === undefined ? null : result;
 }
 
-function getValueVerbose(path) {
-  let { obj } = processPath(path);
-  let result = { value: obj, type: typeof obj };
-
-  if (result.type === "object") {
-    if (obj === null) {
-      result.type = "null";
-    } else if (obj instanceof Array) {
-      result.type = "array";
-    }
-  }
-  if (result.type === "string" || result.type === "array") {
-    result.size = obj.length;
-  } else if (result.type === "object") {
-    result.keys = Object.keys(obj);
-    result.values = Object.values(obj);
-    result.size = result.keys.length;
-  }
-  return result;
+function getValue(path) {
+  return processPath(path).obj;
 }
 
 function setValue(path, value) {
@@ -228,8 +236,8 @@ function deleteValue(path) {
 */
 
 const VALID_OPTIONS = {
-  "GET": ["json", "text", "keys", "values", "entries", "type", "size", "verbose"],
-  "POST": ["json"],
+  "GET": ["json", "text"],
+  "POST": ["json", "text"],
   "PUT": ["json", "text"],
   "DELETE": ["json", "text"],
 }
@@ -262,51 +270,15 @@ function startServer(jsonPath, port = "8080") {
         }
         switch (req.method) {
           case "GET":
-            value = getValueVerbose(path);
+            value = getValue(path);
             switch (opc) {
               case "text":
                 res.writeHead(200, { 'Content-Type': "text/plain" });
-                res.write(value.type === "string" ? value.value : JSON.stringify(value.value));
-                break;
-              case "type":
-                res.writeHead(200, { 'Content-Type': "application/json" });
-                res.write(JSON.stringify({ type: value.type }));
-                break;
-              case "size":
-                if (value.size === undefined) {
-                  throw new BadCallError(`Value '${path.join(".")}' doesn't have a size.`);
-                }
-                res.writeHead(200, { 'Content-Type': "application/json" });
-                res.write(JSON.stringify({ size: value.size }));
-                break;
-              case "keys":
-                if (value.size === undefined) {
-                  throw new BadCallError(`Value '${path.join(".")}' doesn't have keys.`);
-                }
-                res.writeHead(200, { 'Content-Type': "application/json" });
-                res.write(JSON.stringify({ keys: value.keys }));
-                break;
-              case "values":
-                if (value.size === undefined) {
-                  throw new BadCallError(`Value '${path.join(".")}' doesn't have values.`);
-                }
-                res.writeHead(200, { 'Content-Type': "application/json" });
-                res.write(JSON.stringify({ values: value.values }));
-                break;
-              case "entries":
-                if (value.keys === undefined) {
-                  throw new BadCallError(`Value '${path.join(".")}' doesn't have entries.`);
-                }
-                res.writeHead(200, { 'Content-Type': "application/json" });
-                res.write(JSON.stringify({ entries: Object.entries(value.value) }));
-                break;
-              case "verbose":
-                res.writeHead(200, { 'Content-Type': "application/json" });
-                res.write(JSON.stringify(value));
+                res.write(typeof value === "string" ? value : JSON.stringify(value));
                 break;
               case "json":
                 res.writeHead(200, { 'Content-Type': "application/json" });
-                res.write(JSON.stringify(value.value));
+                res.write(JSON.stringify(value));
                 break;
             }
             break;
@@ -317,8 +289,17 @@ function startServer(jsonPath, port = "8080") {
             } catch (e) {
               throw new BadCallError(`Error procesing body: ${e.message}`);
             }
-            res.writeHead(200, { 'Content-Type': "application/json" });
-            res.write(JSON.stringify(getTemplateValue(path, body)));
+            value = getTemplateValue(path, body)
+            switch (opc) {
+              case "text":
+                res.writeHead(200, { 'Content-Type': "text/plain" });
+                res.write(typeof value === "string" ? value : JSON.stringify(value));
+                break;
+              case "json":
+                res.writeHead(200, { 'Content-Type': "application/json" });
+                res.write(JSON.stringify(value));
+                break;
+            }
             break;
           case "PUT":
             console.log(`Body: ${bodyData}`);
