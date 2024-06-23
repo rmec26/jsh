@@ -143,15 +143,20 @@ const templateFuncs = {
 
 function runTemplateFunction(templateFnObj, baseObj) {
   try {
-    const [fn, ...args] = templateFnObj;
-    return templateFuncs[fn].fn(args, baseObj);
+    let [fn, ...args] = templateFnObj;
+    let pos = fn.indexOf(":");
+    if (pos !== -1) {
+      args.unshift(fn.slice(pos + 1));
+      fn = fn.slice(0, pos);
+    }
+    if (templateFuncs[fn] && args.length >= templateFuncs[fn].args) {
+      return templateFuncs[fn].fn(args, baseObj);
+    }
   } catch (e) { }
 }
 
 function isTemplateFunction(obj) {
-  if (obj instanceof Array) {
-    return templateFuncs[obj[0]] && obj.length > templateFuncs[obj[0]].args
-  }
+  return (obj instanceof Array) && (typeof obj[0] === "string") && obj[0].startsWith("$");
 }
 
 function processTemplate(template, baseObj) {

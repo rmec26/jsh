@@ -7,6 +7,14 @@
 * `@local` - Values set by the `$local` function
 
 
+## Format
+
+Regular - `["$func","value"]`
+
+Compact - `["$func:value"]`, this only works for one value after the function call and it will always be a `string`
+  * `["$func:123"]` is the same as `["$func","123"]` but not `["$func",123]`
+  * this still allows for extra input values so `["$func:test", "hello"]` is valid and is functionally the same as `["$func", "test", "hello"]`
+
 ## Funtions
 
 ### `$`
