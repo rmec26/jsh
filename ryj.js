@@ -56,31 +56,30 @@ function processPath(path, baseObj = root, lastLevels = "root") {
 }
 
 const templateFuncs = {
-  "$": 1,
-  "$run": 0,
-  "$local": 2,
-  "$list": 2,
-  "$object": 2,
-};
-
-
-function runTemplateFunction(templateFnObj, baseObj) {
-  try {
-    const [fn, ...args] = templateFnObj;
-    if (fn === "$") {// $ function
+  "$": {
+    args: 1, fn: (args, baseObj) => {
       const path = processTemplate(args[0], baseObj);
       if (typeof path === "string") {
         return processPath(path.split("."), baseObj).obj;
       } else if (path instanceof Array) {
         return processPath(path.map(v => v.toString()), baseObj).obj;
       }
-    } if (fn === "$run") {// $run function
+    }
+  },
+  "$run": {
+    args: 0, fn: (args, baseObj) => {
       processTemplate(args, baseObj);
-    } if (fn === "$local") {// $local function
+    }
+  },
+  "$local": {
+    args: 2, fn: (args, baseObj) => {
       const id = args[0].toString();
       const value = processTemplate(args[1], baseObj);
       baseObj["@local"][id] = value;
-    } else if (fn === "$list") {// $list function
+    }
+  },
+  "$list": {
+    args: 2, fn: (args, baseObj) => {
       let obj = processTemplate(args[0], baseObj);
       if (obj && typeof obj === "object") {
         let res = [];
@@ -92,7 +91,10 @@ function runTemplateFunction(templateFnObj, baseObj) {
         });
         return res;
       }
-    } else if (fn === "$object") {// $object function
+    }
+  },
+  "$object": {
+    args: 2, fn: (args, baseObj) => {
       let obj = processTemplate(args[0], baseObj);
       if (obj && typeof obj === "object") {
         let res = {};
@@ -105,12 +107,25 @@ function runTemplateFunction(templateFnObj, baseObj) {
         return res;
       }
     }
+  },
+  "$literal": {
+    args: 1, fn: (args, baseObj) => {
+      return args[0];
+    }
+  },
+};
+
+
+function runTemplateFunction(templateFnObj, baseObj) {
+  try {
+    const [fn, ...args] = templateFnObj;
+    return templateFuncs[fn].fn(args, baseObj);
   } catch (e) { }
 }
 
 function isTemplateFunction(obj) {
   if (obj instanceof Array) {
-    return templateFuncs[obj[0]] && obj.length > templateFuncs[obj[0]]
+    return templateFuncs[obj[0]] && obj.length > templateFuncs[obj[0]].args
   }
 }
 

@@ -81,3 +81,15 @@ Input:
   * for each value of `obj` this template will have set to the values `@k` and `@v`
     * `@k` represets the key of the current value of `obj`
     * `@v` represets the current value of `obj`
+
+
+
+### `$literal`
+
+Usage: `["$literal", value]`
+
+Returns `value` as is without trying to process any template in it.
+
+Input:
+
+* `value`: `<any>` - Can be any value, any template ionside it will not be processed.
