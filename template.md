@@ -144,3 +144,21 @@ Input:
 * `path`: `<template>` - Final value should be a `string` or `array`.
   * the `string` should have the format `@.level1.value`
   * the `array` should have the format `["@", "level1", "value"]`
+
+
+
+### `$merge`
+
+Usage: `["$merge", srcObj, patchObj, isDeep]`
+
+Return a value that is the merger of `srcObj` with `patchObj`
+
+Input:
+
+* `srcObj`: `<template>` - Final value can be any type.
+* `patchObj`: `<template>` - Final value can be any type.
+* `patchObj`: `<template>` - Final value is treates as a boolean value.
+    * If `true` it does a deep merge
+    * If `false` it does a shallow merge
+    * It follows the same logic as the `PATCH` endpoint
+

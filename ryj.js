@@ -8,6 +8,63 @@ let root = {};
 class BadCallError extends Error { };
 class NoValueFoundError extends Error { };
 
+
+function merge(a, b, isDeep = false) {
+  let typeA = typeof a;
+  let typeB = typeof b;
+
+  if (typeA !== "object" || typeA !== typeB) {
+    return b;
+  }
+  //They are both objects here
+
+  if (a) {
+    if (a instanceof Array) {
+      typeA = "array";
+    }
+  } else {
+    typeA = "null";
+  }
+
+
+  if (b) {
+    if (b instanceof Array) {
+      typeB = "array";
+    }
+  } else {
+    typeB = "null";
+  }
+
+  if (typeA === "null" || typeA !== typeB) {
+    return b;
+  }
+  //They are both object
+  if (typeA === "object") {
+    let res = {};
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    for (let k of keysA) {
+      if (keysB.includes(k)) {
+        if (isDeep) {
+          res[k] = merge(a[k], b[k], true);
+        } else {
+          res[k] = b[k];
+        }
+      } else {
+        res[k] = a[k];
+      }
+    }
+    for (let k of keysB) {
+      if (!keysA.includes(k)) {
+        res[k] = b[k];
+      }
+    }
+    return res;
+  } else {//they are both arrays
+    return a.concat(b);
+  }
+}
+
 function processLevel(obj, level, lastLevels) {
   if (obj && typeof obj === "object") {
     if (obj instanceof Array) {
@@ -153,6 +210,14 @@ const templateFuncs = {
       return false
     }
   },
+  "$merge": {
+    args: 2, fn: (args, baseObj) => {
+      const a = processTemplate(args[0], baseObj);
+      const b = processTemplate(args[1], baseObj);
+      const c = processTemplate(args[2], baseObj);
+      return merge(a, b, !!c);
+    }
+  },
 };
 
 templateFuncs["$"] = templateFuncs["$get"];
@@ -236,6 +301,12 @@ function setValue(path, value) {
   }
 }
 
+
+function patchValue(path, value, isDeep) {
+  let { parent, obj, level } = processPath(path);
+  parent[level] = merge(obj, value, isDeep);
+}
+
 function deleteValue(path) {
   if (!path.length) {
     let oldRoot = root;
@@ -263,6 +334,7 @@ const VALID_OPTIONS = {
   "GET": ["json", "text"],
   "POST": ["json", "text"],
   "PUT": ["json", "text"],
+  "PATCH": ["json", "deep"],
   "DELETE": ["json", "text"],
 }
 
@@ -344,6 +416,25 @@ function startServer(jsonPath, port = "8080") {
             save()
             res.writeHead(200, { 'Content-Type': "application/json" });
             res.write(JSON.stringify({ message: "Updated" }));
+            break;
+          case "PATCH":
+            console.log(`Body: ${bodyData}`);
+            try {
+              body = JSON.parse(bodyData);
+            } catch (e) {
+              throw new BadCallError(`Error procesing body: ${e.message}`);
+            }
+            switch (opc) {
+              case "deep":
+                patchValue(path, body, true);
+                break;
+              case "json":
+                patchValue(path, body, false);
+                break;
+            }
+            save()
+            res.writeHead(200, { 'Content-Type': "application/json" });
+            res.write(JSON.stringify({ message: "Patched" }));
             break;
           case "DELETE":
             value = deleteValue(path);
