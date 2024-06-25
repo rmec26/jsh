@@ -56,11 +56,11 @@ Input:
 
 
 
-### `$list`
+### `$map`
 
-Usage: `["$list", obj, template]`
+Usage: `["$map", obj, template]`
 
-Creates a list of the values from `obj` by processing each of its values with `template`.
+Maps all the values from `obj` into a list by processing each with `template`.
 
 Input:
 
@@ -74,11 +74,11 @@ Input:
 
 
 
-### `$object` or `$obj`
+### `$kmap`
 
-Usage: `["$object", obj, template]`
+Usage: `["$kmap", obj, template]`
 
-Creates an object from `obj` by processing each of its values with `template`.
+Maps all the values from `obj` into an object by processing each of its values with `template`.
 
 Input:
 
@@ -89,6 +89,20 @@ Input:
   * for each value of `obj` this template will have set to the values `@k` and `@v`
     * `@k` represets the key of the current value of `obj`
     * `@v` represets the current value of `obj`
+
+
+
+### `$object` or `$obj`
+
+Usage: `["$object", keyPair, ...]`
+
+Creates an object using the given
+
+Input:
+
+* `[keyPair]`: `<template>` - Final value should have the format `[any, any]`.
+  * the first value is the key of the pair, if it isn't a string it will be converted to one.
+  * the second value is the value of the pair.
 
 
 

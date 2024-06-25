@@ -135,7 +135,7 @@ const templateFuncs = {
       baseObj["@local"][id] = value;
     }
   },
-  "$list": {
+  "$map": {
     args: 2, fn: (args, baseObj) => {
       let obj = processTemplate(args[0], baseObj);
       if (obj && typeof obj === "object") {
@@ -150,7 +150,7 @@ const templateFuncs = {
       }
     }
   },
-  "$object": {
+  "$kmap": {
     args: 2, fn: (args, baseObj) => {
       let obj = processTemplate(args[0], baseObj);
       if (obj && typeof obj === "object") {
@@ -163,6 +163,18 @@ const templateFuncs = {
         });
         return res;
       }
+    }
+  },
+  "$object": {
+    args: 0, fn: (args, baseObj) => {
+      let result = {};
+      for (let v of args) {
+        const processed = processTemplate(v, baseObj);
+        if (processed instanceof Array && processed.length > 1) {
+          result[processed[0].toString()] = processed[1];
+        }
+      }
+      return result
     }
   },
   "$literal": {
