@@ -272,7 +272,7 @@ function parseQuery(input) {
 const templateFuncs = {
   "$get": {
     args: 1, fn: (args, baseObj) => {
-      let path = processTemplate(args[0], baseObj);
+      let path = args[0];
       if (typeof path === "string") {
         return processPath(path.split("."), baseObj).obj;
       } else if (path instanceof Array) {
@@ -282,19 +282,15 @@ const templateFuncs = {
     }
   },
   "$run": {
-    args: 0, fn: (args, baseObj) => {
-      processTemplate(args, baseObj);
-    }
+    args: 0, fn: () => { }
   },
   "$local": {
     args: 2, fn: (args, baseObj) => {
-      const id = args[0].toString();
-      const value = processTemplate(args[1], baseObj);
-      baseObj["@local"][id] = value;
+      baseObj["@local"][args[0].toString()] = args[1];
     }
   },
   "$map": {
-    args: 2, fn: (args, baseObj) => {
+    args: 2, raw: true, fn: (args, baseObj) => {
       let obj = processTemplate(args[0], baseObj);
       if (obj && typeof obj === "object") {
         let res = [];
@@ -309,7 +305,7 @@ const templateFuncs = {
     }
   },
   "$kmap": {
-    args: 2, fn: (args, baseObj) => {
+    args: 2, raw: true, fn: (args, baseObj) => {
       let obj = processTemplate(args[0], baseObj);
       if (obj && typeof obj === "object") {
         let res = {};
@@ -324,25 +320,24 @@ const templateFuncs = {
     }
   },
   "$object": {
-    args: 0, fn: (args, baseObj) => {
+    args: 0, fn: (args) => {
       let result = {};
       for (let v of args) {
-        const processed = processTemplate(v, baseObj);
-        if (processed instanceof Array && processed.length > 1) {
-          result[processed[0].toString()] = processed[1];
+        if (v instanceof Array && v.length > 1) {
+          result[v[0].toString()] = v[1];
         }
       }
       return result
     }
   },
   "$literal": {
-    args: 1, fn: (args) => {
+    args: 1, raw: true, fn: (args) => {
       return args[0];
     }
   },
   "$size": {
-    args: 1, fn: (args, baseObj) => {
-      let obj = processTemplate(args[0], baseObj);
+    args: 1, fn: (args) => {
+      let obj = args[0];
       let type = typeof obj;
       if (obj instanceof Array || type === "string") {
         return obj.length;
@@ -352,8 +347,8 @@ const templateFuncs = {
     }
   },
   "$type": {
-    args: 1, fn: (args, baseObj) => {
-      let obj = processTemplate(args[0], baseObj);
+    args: 1, fn: (args) => {
+      let obj = args[0];
       let type = typeof obj;
       if (type === "object") {
         if (obj === null) {
@@ -368,12 +363,13 @@ const templateFuncs = {
   "$exists": {
     args: 1, fn: (args, baseObj) => {
       try {
-        const path = processTemplate(args[0], baseObj);
+        let path = args[0];
         if (typeof path === "string") {
           processPath(path.split("."), baseObj);
           return true
         } else if (path instanceof Array) {
-          processPath(path.map(v => v.toString()), baseObj);
+          path = path.map(v => v.toString());
+          processPath(path.length ? path : ["@"], baseObj);
           return true
         }
       } catch (_) { }
@@ -381,18 +377,14 @@ const templateFuncs = {
     }
   },
   "$merge": {
-    args: 2, fn: (args, baseObj) => {
-      const a = processTemplate(args[0], baseObj);
-      const b = processTemplate(args[1], baseObj);
-      const c = processTemplate(args[2], baseObj);
-      return merge(a, b, !!c);
+    args: 2, fn: (args) => {
+      return merge(args[0], args[1], !!args[2]);
     }
   },
   "$query": {
     args: 1, fn: (args, baseObj) => {
-      let processed = processTemplate(args[0], baseObj);
-      if (typeof processed === "string") {
-        let result = parseQuery(processed);
+      if (typeof args[0] === "string") {
+        let result = parseQuery(args[0]);
         //this makes a pop because the processQuery returns an array 
         return processTemplate(result, baseObj).pop();
       }
@@ -400,17 +392,15 @@ const templateFuncs = {
   },
   "$parse": {
     args: 1, fn: (args, baseObj) => {
-      let processed = processTemplate(args[0], baseObj);
-      if (typeof processed === "string") {
-        return parseQuery(processed);
+      if (typeof args[0] === "string") {
+        return parseQuery(args[0]);
       }
     }
   },
   "$exec": {
     args: 1, fn: (args, baseObj) => {
-      let processed = processTemplate(args[0], baseObj);
-      if (processed instanceof Array) {
-        return processTemplate(processed, baseObj).pop();
+      if (args[0] instanceof Array) {
+        return processTemplate(args[0], baseObj).pop();
       }
     }
   },
@@ -429,8 +419,13 @@ function runTemplateFunction(templateFnObj, baseObj) {
       args.unshift(fn.slice(pos + 1));
       fn = fn.slice(0, pos);
     }
-    if (templateFuncs[fn] && args.length >= templateFuncs[fn].args) {
-      return templateFuncs[fn].fn(args, baseObj);
+    if (templateFuncs[fn]) {
+      if (!templateFuncs[fn].raw) {
+        args = processTemplate(args, baseObj);
+      }
+      if (args.length >= templateFuncs[fn].args) {
+        return templateFuncs[fn].fn(args, baseObj);
+      }
     }
   } catch (e) { }
 }
