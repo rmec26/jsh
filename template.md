@@ -176,3 +176,38 @@ Input:
     * If `false` it does a shallow merge
     * It follows the same logic as the `PATCH` endpoint
 
+
+
+### `$query`
+
+Usage: `["$query", input]`
+
+Parses the given `input` as a `query` into a valid template, runs it and returns the last returned value
+
+Input:
+
+* `input`: `<template>` - Final value should be a `string`.
+
+
+
+### `$parse`
+
+Usage: `["$parse", input]`
+
+Parses the given `input` as a `query` into a valid template and returns it.
+
+Input:
+
+* `input`: `<template>` - Final value should be a `string`.
+
+
+
+### `$exec`
+
+Usage: `["$exec", input]`
+
+Runs the given `input` and returns the last returned value
+
+Input:
+
+* `input`: `<template>` - Final value should be an `array`.

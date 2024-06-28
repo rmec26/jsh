@@ -112,14 +112,172 @@ function processPath(path, baseObj = root, lastLevels = "root") {
   return { parent, obj, lastLevels, level };
 }
 
+function processQueryBuffer(state) {
+  if (state.buffer) {
+    try {
+      state.curr.push(JSON.parse(state.buffer));
+    } catch (e) {
+      state.curr.push(state.buffer);
+    }
+    state.buffer = "";
+    state.isReading = false;
+  }
+}
+
+function parseQueryString(state, finalValue) {
+  let buffer = "";
+  let isRunning = true;
+  while (state.pos < state.input.length && isRunning) {
+    let c = state.input[state.pos];
+    state.pos++;
+
+    if (c == finalValue) {
+      isRunning = false;
+    } else if (c == "\\") {
+      if (state.pos < state.input.length) {
+        switch (state.input[state.pos]) {
+          case "r":
+            buffer += "\r";
+            break;
+          case "n":
+            buffer += "\n";
+            break;
+          case "t":
+            buffer += "\t";
+            break;
+          default:
+            buffer += state.input[state.pos];
+            break;
+        }
+        state.pos++;
+      }
+    } else {
+      buffer += c;
+    }
+  }
+
+  //If it gets to the end of the input it simply adds whatever is in the buffer
+  state.curr.push(buffer);
+}
+
+function parseQueryVariable(state) {
+  let varList = [];
+  //The @ here is because all values start with a @ on a template
+  let buffer = "@";
+  let isRunning = true;
+  while (state.pos < state.input.length && isRunning) {
+    let c = state.input[state.pos];
+    state.pos++;
+    let isWhitespace = c == " " || c == "\r" || c == "\t" || c == "\n";
+
+    if (isWhitespace) {
+      isRunning = false;
+    } else if (c == ".") {
+      varList.push(buffer);
+      buffer = "";
+    } else if (c == "(" || c == ")") {
+      state.pos--;
+      isRunning = false;
+    } else if (c == "\\") {
+      if (state.pos < state.input.length) {
+        buffer += state.input[state.pos];
+        state.pos++;
+      }
+    } else {
+      buffer += c;
+    }
+  }
+  //The fact that it can put the last buffer even if empty here is on purpose
+  varList.push(buffer);
+  state.curr.push(["$get", varList])
+}
+
+function parseQuery(input) {
+  let state = {
+    input,
+    pos: 0,
+    buffer: "",
+    isReading: false,
+    stack: [],
+    curr: [],
+  }
+
+  while (state.pos < state.input.length) {
+    let c = state.input[state.pos];
+    state.pos++;
+    let isWhitespace = c == " " || c == "\r" || c == "\t" || c == "\n";
+    if (state.isReading) {
+      if (isWhitespace) {
+        state.isReading = false;
+        processQueryBuffer(state);
+      } else if (c == "(") {
+        processQueryBuffer(state);
+        state.stack.push(state.curr);
+        state.curr = [];
+      } else if (c == ")") {
+        processQueryBuffer(state);
+        if (state.stack.length) {
+          let aux = state.curr;
+          state.curr = state.stack.pop();
+          state.curr.push(aux);
+        }
+      } else if (c == "\\") {
+        if (state.pos < state.input.length) {
+          state.buffer += state.input[state.pos];
+          state.pos++;
+        }
+      } else {
+        state.buffer += c;
+      }
+    } else {
+      if (!isWhitespace) {
+        if (c == "(") {
+          state.stack.push(state.curr);
+          state.curr = [];
+        } else if (c == ")") {
+          if (state.stack.length) {
+            let aux = state.curr;
+            state.curr = state.stack.pop();
+            state.curr.push(aux);
+          }
+        } else if (c == "\\") {
+          state.isReading = true;
+          if (state.pos < state.input.length) {
+            state.buffer += state.input[state.pos];
+            state.pos++;
+          }
+        } else if (c == "\"" || c == "'") {
+          parseQueryString(state, c);
+        } else if (c == "@") {
+          parseQueryVariable(state);
+        } else {
+          state.isReading = true;
+          state.buffer += c;
+        }
+      }
+    }
+  }
+  processQueryBuffer(state);
+
+  //Automatically closes any open lists and adds them to the parent one
+  while (state.stack.length) {
+    let aux = state.curr;
+    state.curr = state.stack.pop();
+    state.curr.push(aux);
+  }
+
+  return state.curr
+}
+
 const templateFuncs = {
   "$get": {
     args: 1, fn: (args, baseObj) => {
-      const path = processTemplate(args[0], baseObj);
+      let path = processTemplate(args[0], baseObj);
       if (typeof path === "string") {
         return processPath(path.split("."), baseObj).obj;
       } else if (path instanceof Array) {
-        return processPath(path.map(v => v.toString()), baseObj).obj;
+        path = path.map(v => v.toString());
+        return processPath(path.length ? path : ["@"], baseObj).obj;
       }
     }
   },
@@ -228,6 +386,32 @@ const templateFuncs = {
       const b = processTemplate(args[1], baseObj);
       const c = processTemplate(args[2], baseObj);
       return merge(a, b, !!c);
+    }
+  },
+  "$query": {
+    args: 1, fn: (args, baseObj) => {
+      let processed = processTemplate(args[0], baseObj);
+      if (typeof processed === "string") {
+        let result = parseQuery(processed);
+        //this makes a pop because the processQuery returns an array 
+        return processTemplate(result, baseObj).pop();
+      }
+    }
+  },
+  "$parse": {
+    args: 1, fn: (args, baseObj) => {
+      let processed = processTemplate(args[0], baseObj);
+      if (typeof processed === "string") {
+        return parseQuery(processed);
+      }
+    }
+  },
+  "$exec": {
+    args: 1, fn: (args, baseObj) => {
+      let processed = processTemplate(args[0], baseObj);
+      if (processed instanceof Array) {
+        return processTemplate(processed, baseObj).pop();
+      }
     }
   },
 };
