@@ -224,3 +224,332 @@ Runs the given `input` and returns the last returned value
 Input:
 
 * `input`: `<template[]>` - Parsed input to execute.
+
+
+
+### `$add` or `$+`
+
+Usage: `["$add", a, b]`
+
+Adds `b` to `a` and returns the result.
+
+Input:
+
+* `a`: `<number>`
+* `b`: `<number>`
+
+
+
+### `$subtract`, `$sub` or `$-`
+
+Usage: `["$subtract", a, b]`
+
+Subtracts `b` from `a` and returns the result.
+
+Input:
+
+* `a`: `<number>`
+* `b`: `<number>`
+
+
+
+### `$multiply`, `$mul` or `$*`
+
+Usage: `["$multiply", a, b]`
+
+multiplies `a` with `b` and returns the result.
+
+Input:
+
+* `a`: `<number>`
+* `b`: `<number>`
+
+
+
+### `$divide`, `$div` or `$/`
+
+Usage: `["$divide", a, b]`
+
+Divides `a` with `b` and returns the result.
+Input:
+
+* `a`: `<number>`
+* `b`: `<number>`
+
+
+
+### `$integerDivide`, `$idiv` or `$//`
+
+Usage: `["$integerDivide", a, b]`
+
+Divides `a` with `b` and returns the integer result.
+Input:
+
+* `a`: `<number>`
+* `b`: `<number>`
+
+
+
+### `$modulo`, `$mod` or `$%`
+
+Usage: `["$modulo", a, b]`
+
+Returns the modulo of `a` with `b`.
+
+Input:
+
+* `a`: `<number>`
+* `b`: `<number>`
+
+
+
+### `$truncate` or `$trunc`
+
+Usage: `["$truncate", a]`
+
+Returns the integer part of `a`.
+
+Input:
+
+* `a`: `<number>`
+
+
+
+### `$string` or `$str`
+
+Usage: `["$string", value]`
+
+Converts the given `value` into a `string`.
+
+Input:
+
+* `value`: `<any>` - value to convert
+
+
+
+### `$boolean` or `$bool`
+
+Usage: `["$boolean", value]`
+
+Converts the given `value` into a `boolean`.
+
+Input:
+
+* `value`: `<any>` - value to convert
+  * If the value is an `array` or an `object` then it will return `true` if it has values and `false` otherwise.
+  * If the value is a `number` it will return `true` if the value is not `0` and `false` if `0`.
+  * If the value is a `string` it will return `true` if its not an empty string and `false` if it is.
+  * If the value is `null` it will return `false`.
+
+
+
+### `$number` or `$num`
+
+Usage: `["$number", value]`
+
+Converts the given `value` into a `number`.
+
+Input:
+
+* `value`: `<any>` - value to convert
+  * If the value is an `array` or an `object` then it will return `1` if it has values and `0` otherwise.
+  * If the value is a `boolean` it will return `1` if the value is `true` and `0` if `false`.
+  * If the value is a `string` it will return parsed `number` from the string.
+  * If the value is `null` it will return `0`.
+
+
+
+
+### `$integer` or `$int`
+
+Usage: `["$integer", value]`
+
+Converts the given `value` into a `number` and returns the integer part.
+
+Input:
+
+* `value`: `<any>` - value to convert
+  * If the value is an `array` or an `object` then it will return `1` if it has values and `0` otherwise.
+  * If the value is a `boolean` it will return `1` if the value is `true` and `0` if `false`.
+  * If the value is a `string` it will return parsed `number` from the string.
+  * If the value is `null` it will return `0`.
+
+
+
+### `$json`
+
+Usage: `["$json", value]`
+
+Parses the given `value` as a JSON and returns the parsed object.
+
+Input:
+
+* `value`: `<any>` - value to parse
+
+
+
+### `$equals`, `$eq` or `$==`
+
+Usage: `["$equals", a, b]`
+
+Returns `true` if the value `a` is the same as `b`, returns `false` otherwise.
+
+Input:
+
+* `a`: `<any>`
+* `b`: `<any>`
+
+
+
+### `$notEquals`, `$ne` or `$!=`
+
+Usage: `["$notEquals", a, b]`
+
+Returns `true` if the value `a` is not the same as `b`, returns `false` otherwise.
+
+Input:
+
+* `a`: `<any>`
+* `b`: `<any>`
+
+
+
+### `$greater`, `$gt` or `$>`
+
+Usage: `["$greater", a, b]`
+
+Returns `true` if the value `a` is greater than `b`, returns `false` otherwise.
+
+Note: only works if both `a` and `b` have the same type.
+
+Input:
+
+* `a`: `<string|number>`
+* `b`: `<string|number>`
+
+
+
+### `$less`, `$lt` or `$<`
+
+Usage: `["$greater", a, b]`
+
+Returns `true` if the value `a` is less than `b`, returns `false` otherwise.
+
+Note: only works if both `a` and `b` have the same type.
+
+Input:
+
+* `a`: `<string|number>`
+* `b`: `<string|number>`
+
+
+
+### `$greaterEqual`, `$gte` or `$>=`
+
+Usage: `["$greater", a, b]`
+
+Returns `true` if the value `a` is greater than or equal to `b`, returns `false` otherwise.
+
+Note: only works if both `a` and `b` have the same type.
+
+Input:
+
+* `a`: `<string|number>`
+* `b`: `<string|number>`
+
+
+
+### `$lessEqual`, `$lte` or `$<=`
+
+Usage: `["$greater", a, b]`
+
+Returns `true` if the value `a` is less than or equal to `b`, returns `false` otherwise.
+
+Note: only works if both `a` and `b` have the same type.
+
+Input:
+
+* `a`: `<string|number>`
+* `b`: `<string|number>`
+
+
+
+### `$if`
+
+Usage: `["$if", condition, then, else]`
+
+Is raw: `true`
+
+Runs the `condition` and if it returns `true` runs the `then`, else it runs the `else`.
+
+Input:
+
+* `condition`: `<any>` - the final value will be converted to a boolean using the same logic as thew `$boolean` function
+* `then`: `<template>` - template that is run if the condition is `true`
+* `else`: `<template>` - template that is run if the condition is `false`, its optional
+
+
+
+### `$join`
+
+Usage: `["$join", values, separator]`
+
+Joins all `values` into a single `string`.
+
+Input:
+
+* `values`: `<array>` - values to be converted, any value not a `string` will be converted to one.
+* `separator`: `<string>` - `string` that is put between the `values`, its optional
+
+
+
+### `$sum`
+
+Usage: `["$sum", values]`
+
+Sums all `values` into a single `number`.
+
+Input:
+
+* `values`: `<array>` - values to be summed, any value not a `number` will be ignored.
+
+
+
+
+### `$slice`
+
+Usage: `["$slice", obj, start, end]`
+
+Returns a slice of `obj` from `start` to `end`.
+
+Input:
+
+* `obj`: `<array|string>` - value to be sliced
+* `start`: `<number>` - start of the slice
+* `end`: `<number>` - end of the slice, its optional
+
+
+
+### `$minimum` or `$min`
+
+Usage: `["$minimum", values]`
+
+Returns the minimum value of all `values`.
+
+Input:
+
+* `values`: `<array>` - values to be checked, any value not a `number` will be ignored.
+
+
+
+### `$maximum` or `$max`
+
+Usage: `["$maximum", values]`
+
+Returns the maximum value of all `values`.
+
+Input:
+
+* `values`: `<array>` - values to be checked, any value not a `number` will be ignored.
+
+

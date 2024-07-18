@@ -29,6 +29,4 @@ Run the command `node <json path> [<port>]`
 
 ## TODO
 
-* create json if it doesnt exist
-* no file mode, using `-`
 * more template functions

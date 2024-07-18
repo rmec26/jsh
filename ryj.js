@@ -269,6 +269,108 @@ function parseQuery(input) {
   return state.curr
 }
 
+function toBoolean(value) {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value === "object") {
+    if (value) {
+      if (value instanceof Array) {
+        return !!value.length;
+      } else {
+        return !!Object.keys(value).length;
+      }
+    } else {
+      return false;
+    }
+  } else {
+    return !!value;
+  }
+}
+
+function toString(value) {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  } else {
+    return value.toString();
+  }
+}
+
+function toNumber(value) {
+  if (value === undefined) {
+    return;
+  }
+  const type = typeof value;
+  if (type === "object") {
+    //This imitates the logic on the toBool
+    if (value) {
+      if (value instanceof Array) {
+        return value.length ? 1 : 0;
+      } else {
+        return Object.keys(value).length ? 1 : 0;
+      }
+    } else {
+      return 0;
+    }
+  } else if (type === "boolean") {
+    return value ? 1 : 0;
+  } else if (type === "string") {
+    let res = Number(value);
+    if (!Number.isNaN(res)) {
+      return res;
+    }
+  } else {
+    return value;
+  }
+}
+
+function toInteger(value) {
+  let res = Number(value);
+  if (value !== undefined) {
+    return Math.trunc(res);
+  }
+}
+
+function isEqual(a, b) {
+  const typeA = typeof a;
+  const typeB = typeof a;
+
+  if (typeA === "object" && typeB === "object") {
+    if (a) {
+      if (b) {
+        const aIsArray = a instanceof Array;
+        const bIsArray = b instanceof Array;
+        if (aIsArray === bIsArray) {// they are the same type
+          if (aIsArray) {//they are arrays
+            if (a.length === b.length) {
+              return a.every((v, i) => isEqual(v, b[i]));
+            }
+            return false;
+          } else {//they are objects
+            let keysA = Object.keys(a);
+            let keysB = Object.keys(b);
+            if (keysA.length === keysB.length) {
+              return keysA.every(k => b[k] !== undefined && isEqual(a[k], b[k]));
+            }
+            return false;
+          }
+        } else {
+          return false;
+        }
+      } else {//a is obj or array but b is null
+        return false;
+      }
+    } else {//a is null here
+      return !b
+    }
+  } else {
+    return a === b;
+  }
+}
+
 const templateFuncs = {
   "$get": {
     args: 1, fn: (args, baseObj) => {
@@ -331,9 +433,7 @@ const templateFuncs = {
     }
   },
   "$literal": {
-    args: 1, raw: true, fn: (args) => {
-      return args[0];
-    }
+    args: 1, raw: true, fn: args => args[0]
   },
   "$size": {
     args: 1, fn: (args) => {
@@ -391,7 +491,7 @@ const templateFuncs = {
     }
   },
   "$parse": {
-    args: 1, fn: (args, baseObj) => {
+    args: 1, fn: (args) => {
       if (typeof args[0] === "string") {
         return parseQuery(args[0]);
       }
@@ -404,11 +504,210 @@ const templateFuncs = {
       }
     }
   },
+  "$add": {
+    args: 2, fn: (args) => {
+      if (typeof args[0] === "number" && typeof args[1] === "number") {
+        return args[0] + args[1];
+      }
+    }
+  },
+  "$subtract": {
+    args: 2, fn: (args) => {
+      if (typeof args[0] === "number" && typeof args[1] === "number") {
+        return args[0] - args[1];
+      }
+    }
+  },
+  "$multiply": {
+    args: 2, fn: (args) => {
+      if (typeof args[0] === "number" && typeof args[1] === "number") {
+        return args[0] * args[1];
+      }
+    }
+  },
+  "$divide": {
+    args: 2, fn: (args) => {
+      if (typeof args[0] === "number" && typeof args[1] === "number") {
+        return args[0] / args[1];
+      }
+    }
+  },
+  "$integerDivide": {
+    args: 2, fn: (args) => {
+      if (typeof args[0] === "number" && typeof args[1] === "number") {
+        return Math.trunc(args[0] / args[1]);
+      }
+    }
+  },
+  "$modulo": {
+    args: 2, fn: (args) => {
+      if (typeof args[0] === "number" && typeof args[1] === "number") {
+        return args[0] % args[1];
+      }
+    }
+  },
+  "$truncate": {
+    args: 1, fn: (args) => {
+      if (typeof args[0] === "number") {
+        return Math.trunc(args[0]);
+      }
+    }
+  },
+  "$string": {
+    args: 1, fn: args => toString(args[0])
+  },
+  "$boolean": {
+    args: 1, fn: args => toBoolean(args[0])
+  },
+  "$number": {
+    args: 1, fn: args => toNumber(args[0])
+  },
+  "$integer": {
+    args: 1, fn: args => toInteger(args[0])
+  },
+  "$json": {
+    args: 1, fn: (args) => {
+      if (typeof args[0] === "string") {
+        return JSON.parse(args[0]);
+      }
+    }
+  },
+  "$equals": {
+    args: 2, fn: args => isEqual(args[0], args[1])
+  },
+  "$notEquals": {
+    args: 2, fn: args => !isEqual(args[0], args[1])
+  },
+  "$greater": {
+    args: 2, fn: args => {
+      const typeA = typeof args[0];
+      const typeB = typeof args[1];
+      if (typeA === typeB && (typeA === "number" || typeA === "string")) {
+        return args[0] > args[1];
+      }
+    }
+  },
+  "$less": {
+    args: 2, fn: args => {
+      const typeA = typeof args[0];
+      const typeB = typeof args[1];
+      if (typeA === typeB && (typeA === "number" || typeA === "string")) {
+        return args[0] < args[1];
+      }
+    }
+  },
+  "$greaterEqual": {
+    args: 2, fn: args => {
+      const typeA = typeof args[0];
+      const typeB = typeof args[1];
+      if (typeA === typeB && (typeA === "number" || typeA === "string")) {
+        return args[0] >= args[1];
+      }
+    }
+  },
+  "$lessEqual": {
+    args: 2, fn: args => {
+      const typeA = typeof args[0];
+      const typeB = typeof args[1];
+      if (typeA === typeB && (typeA === "number" || typeA === "string")) {
+        return args[0] <= args[1];
+      }
+    }
+  },
+  "$if": {
+    args: 2, raw: true, fn: (args, baseObj) => {
+      let check = processTemplate(args[0], baseObj);
+      if (check !== undefined) {
+        if (toBoolean(check)) {
+          return processTemplate(args[1], baseObj);
+        } else if (args[2]) {
+          return processTemplate(args[2], baseObj);
+        }
+      }
+    }
+  },
+  "$join": {
+    args: 1, fn: args => {
+      if (args[0] instanceof Array) {
+        let separator = args.length > 1 && typeof args[1] === "string" ? args[1] : "";
+        return args[0].map(v => toString(v)).join(separator);
+      }
+    }
+  },
+  "$sum": {
+    args: 1, fn: args => {
+      if (args[0] instanceof Array) {
+        return args[0].reduce((sum, v) => {
+          if (typeof v === "number") {
+            sum += v;
+          }
+          return sum;
+        }, 0);
+      }
+    }
+  },
+  "$slice": {
+    args: 2, fn: args => {
+      if ((args[0] instanceof Array || typeof args[0] === "string") && typeof args[1] === "number") {
+        return args[0].slice(args[1], typeof args[2] === "number" ? args[2] : undefined);
+      }
+    }
+  },
+  "$minimum": {
+    args: 1, fn: args => {
+      if (args[0] instanceof Array) {
+        let aux = args[0].filter(v => typeof v === "number");
+        if (aux.length) {
+          return Math.min(...aux);
+        }
+      }
+    }
+  },
+  "$maximum": {
+    args: 1, fn: args => {
+      if (args[0] instanceof Array) {
+        let aux = args[0].filter(v => typeof v === "number");
+        if (aux.length) {
+          return Math.max(...aux);
+        }
+      }
+    }
+  },
 };
 
-templateFuncs["$"] = templateFuncs["$get"];
+templateFuncs["$"] = templateFuncs["$query"];
 templateFuncs["$obj"] = templateFuncs["$object"];
 templateFuncs["$lit"] = templateFuncs["$literal"];
+templateFuncs["$+"] = templateFuncs["$add"];
+templateFuncs["$sub"] = templateFuncs["$subtract"];
+templateFuncs["$-"] = templateFuncs["$subtract"];
+templateFuncs["$mul"] = templateFuncs["$multiply"];
+templateFuncs["$*"] = templateFuncs["$multiply"];
+templateFuncs["$div"] = templateFuncs["$divide"];
+templateFuncs["$/"] = templateFuncs["$divide"];
+templateFuncs["$idiv"] = templateFuncs["$integerDivide"];
+templateFuncs["$//"] = templateFuncs["$integerDivide"];
+templateFuncs["$mod"] = templateFuncs["$modulo"];
+templateFuncs["$%"] = templateFuncs["$modulo"];
+templateFuncs["$trunc"] = templateFuncs["$truncate"];
+templateFuncs["$str"] = templateFuncs["$string"];
+templateFuncs["$bool"] = templateFuncs["$boolean"];
+templateFuncs["$num"] = templateFuncs["$number"];
+templateFuncs["$int"] = templateFuncs["$integer"];
+templateFuncs["$eq"] = templateFuncs["$equals"];
+templateFuncs["$=="] = templateFuncs["$equals"];
+templateFuncs["$ne"] = templateFuncs["$notEquals"];
+templateFuncs["$!="] = templateFuncs["$notEquals"];
+templateFuncs["$gt"] = templateFuncs["$greater"];
+templateFuncs["$>"] = templateFuncs["$greater"];
+templateFuncs["$lt"] = templateFuncs["$less"];
+templateFuncs["$<"] = templateFuncs["$less"];
+templateFuncs["$gte"] = templateFuncs["$greaterEqual"];
+templateFuncs["$>="] = templateFuncs["$greaterEqual"];
+templateFuncs["$lte"] = templateFuncs["$lessEqual"];
+templateFuncs["$<="] = templateFuncs["$lessEqual"];
+templateFuncs["$min"] = templateFuncs["$minimum"];
+templateFuncs["$max"] = templateFuncs["$maximum"];
 
 
 function runTemplateFunction(templateFnObj, baseObj) {
@@ -466,7 +765,7 @@ function processTemplate(template, baseObj) {
 
 function getTemplateValue(path, template) {
   let templateBase = processPath(path);
-  let result = processTemplate(template, { "@": templateBase.obj, "@root": root, "@local": {} });
+  let result = processTemplate(template, { "@": templateBase.obj, "@post": templateBase.obj, "@root": root, "@local": {} });
   return result === undefined ? null : result;
 }
 
@@ -491,7 +790,6 @@ function setValue(path, value) {
     obj[finalPath] = value
   }
 }
-
 
 function patchValue(path, value, isDeep) {
   let { parent, obj, level } = processPath(path);
@@ -529,11 +827,19 @@ const VALID_OPTIONS = {
   "DELETE": ["json", "text"],
 }
 
-function startServer(jsonPath, port = "8080") {
-  function save() {
-    fs.writeFileSync(jsonPath, JSON.stringify(root));
+function startServer(jsonPath = "-", port = "8080") {
+  let save = () => { };
+
+  if (jsonPath !== "-") {
+    save = () => {
+      fs.writeFileSync(jsonPath, JSON.stringify(root));
+    }
+    if (!fs.existsSync(jsonPath)) {
+      save();
+    }
+    root = JSON.parse(fs.readFileSync(jsonPath).toString());
   }
-  root = JSON.parse(fs.readFileSync(jsonPath).toString());
+
   http.createServer(function (req, res) {
     //@ts-ignore
     let urlObj = url.parse(req.url, true);
@@ -655,15 +961,8 @@ function startServer(jsonPath, port = "8080") {
       res.end();
     });
   }).listen(port);
-  console.log(`Server start on port ${port} for file ${jsonPath}`);
+  console.log(`Server start on port ${port} ${jsonPath === "-" ? "running in memory" : `for file ${jsonPath}`}`);
 }
-
-
-/*
-+-------------+
-| System Init |
-+-------------+
-*/
 
 let jsonPath = process.argv[2];
 let port = process.argv[3];
