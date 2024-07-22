@@ -65,6 +65,13 @@ function merge(a, b, isDeep = false) {
   }
 }
 
+/**
+ * 
+ * @param {object|Array} obj 
+ * @param {string} level 
+ * @param {string} lastLevels 
+ * @returns 
+ */
 function processLevel(obj, level, lastLevels) {
   if (obj && typeof obj === "object") {
     if (obj instanceof Array) {
@@ -96,6 +103,13 @@ function processLevel(obj, level, lastLevels) {
   throw new BadCallError(`The value ${lastLevels} is not an object/array.`)
 }
 
+/**
+ * 
+ * @param {string[]} path 
+ * @param {any} baseObj 
+ * @param {string} lastLevels 
+ * @returns 
+ */
 function processPath(path, baseObj = root, lastLevels = "root") {
   let parent = null;
   let obj = baseObj;
@@ -163,7 +177,7 @@ function parseQueryString(state, finalValue) {
 function parseQueryVariable(state) {
   let varList = [];
   //The @ here is because all values start with a @ on a template
-  let buffer = "@";
+  let buffer = "";
   let isRunning = true;
   while (state.pos < state.input.length && isRunning) {
     let c = state.input[state.pos];
@@ -379,7 +393,7 @@ const templateFuncs = {
         return processPath(path.split("."), baseObj).obj;
       } else if (path instanceof Array) {
         path = path.map(v => v.toString());
-        return processPath(path.length ? path : ["@"], baseObj).obj;
+        return processPath(path.length ? path : [""], baseObj).obj;
       }
     }
   },
@@ -388,7 +402,7 @@ const templateFuncs = {
   },
   "$local": {
     args: 2, fn: (args, baseObj) => {
-      baseObj["@local"][args[0].toString()] = args[1];
+      baseObj["local"][args[0].toString()] = args[1];
     }
   },
   "$map": {
@@ -397,7 +411,7 @@ const templateFuncs = {
       if (obj && typeof obj === "object") {
         let res = [];
         Object.entries(obj).forEach(([k, v]) => {
-          const processed = processTemplate(args[1], { ...baseObj, "@v": v, "@k": k })
+          const processed = processTemplate(args[1], { ...baseObj, "v": v, "k": k })
           if (processed !== undefined) {
             res.push(processed);
           }
@@ -412,7 +426,7 @@ const templateFuncs = {
       if (obj && typeof obj === "object") {
         let res = {};
         Object.entries(obj).forEach(([k, v]) => {
-          const processed = processTemplate(args[1], { ...baseObj, "@v": v, "@k": k })
+          const processed = processTemplate(args[1], { ...baseObj, "v": v, "k": k })
           if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
             res[processed.k.toString()] = processed.v;
           }
@@ -469,7 +483,7 @@ const templateFuncs = {
           return true
         } else if (path instanceof Array) {
           path = path.map(v => v.toString());
-          processPath(path.length ? path : ["@"], baseObj);
+          processPath(path.length ? path : [""], baseObj);
           return true
         }
       } catch (_) { }
@@ -765,7 +779,7 @@ function processTemplate(template, baseObj) {
 
 function getTemplateValue(path, template) {
   let templateBase = processPath(path);
-  let result = processTemplate(template, { "@": templateBase.obj, "@post": templateBase.obj, "@root": root, "@local": {} });
+  let result = processTemplate(template, { "": templateBase.obj, "post": templateBase.obj, "this": templateBase.obj, "root": root, "local": {} });
   return result === undefined ? null : result;
 }
 
