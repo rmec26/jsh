@@ -3,14 +3,16 @@ const http = require("http");
 const url = require("url");
 const fs = require("fs");
 
-let root = {};
+let system = { root: {} };
 
 class BadCallError extends Error { };
 class NoValueFoundError extends Error { };
 
 
 function merge(a, b, isDeep = false) {
+  /** @type {string} */
   let typeA = typeof a;
+  /** @type {string} */
   let typeB = typeof b;
 
   if (typeA !== "object" || typeA !== typeB) {
@@ -107,16 +109,16 @@ function processLevel(obj, level, lastLevels) {
  * 
  * @param {string[]} path 
  * @param {any} baseObj 
- * @param {string} lastLevels 
  * @returns 
  */
-function processPath(path, baseObj = root, lastLevels = "root") {
+function processPath(path, baseObj) {
   let parent = null;
   let obj = baseObj;
   let level = null;
+  let lastLevels = "";
   for (let p of path) {
+    lastLevels += lastLevels ? `.${p}` : p;
     level = processLevel(obj, p, lastLevels);
-    lastLevels += `.${p}`;
     parent = obj;
     obj = obj[level];
     if (obj === undefined) {
@@ -174,14 +176,15 @@ function parseQueryString(state, finalValue) {
   state.curr.push(buffer);
 }
 
-function parseQueryVariable(state) {
+
+
+function parseVariableToList(input, pos = 0) {
   let varList = [];
-  //The @ here is because all values start with a @ on a template
   let buffer = "";
   let isRunning = true;
-  while (state.pos < state.input.length && isRunning) {
-    let c = state.input[state.pos];
-    state.pos++;
+  while (pos < input.length && isRunning) {
+    let c = input[pos];
+    pos++;
     let isWhitespace = c == " " || c == "\r" || c == "\t" || c == "\n";
 
     if (isWhitespace) {
@@ -190,12 +193,12 @@ function parseQueryVariable(state) {
       varList.push(buffer);
       buffer = "";
     } else if (c == "(" || c == ")") {
-      state.pos--;
+      pos--;
       isRunning = false;
     } else if (c == "\\") {
-      if (state.pos < state.input.length) {
-        buffer += state.input[state.pos];
-        state.pos++;
+      if (pos < input.length) {
+        buffer += input[pos];
+        pos++;
       }
     } else {
       buffer += c;
@@ -203,6 +206,12 @@ function parseQueryVariable(state) {
   }
   //The fact that it can put the last buffer even if empty here is on purpose
   varList.push(buffer);
+  return { pos, varList };
+}
+
+function parseQueryVariable(state) {
+  let { pos, varList } = parseVariableToList(state.input, state.pos);
+  state.pos = pos;
   state.curr.push(["$get", varList])
 }
 
@@ -281,6 +290,18 @@ function parseQuery(input) {
   }
 
   return state.curr
+}
+
+function parsePathInput(path) {
+  if (typeof path === "string") {
+    return parseVariableToList(path).varList;
+  } else if (path instanceof Array) {
+    if (!path.length) {
+      throw new BadCallError("Path cannot be an empty array.");
+    }
+    return path.map(v => v.toString());
+  }
+  throw new BadCallError("Path is not of the type string or array.");
 }
 
 function toBoolean(value) {
@@ -388,22 +409,21 @@ function isEqual(a, b) {
 const templateFuncs = {
   "$get": {
     args: 1, fn: (args, baseObj) => {
-      let path = args[0];
-      if (typeof path === "string") {
-        return processPath(path.split("."), baseObj).obj;
-      } else if (path instanceof Array) {
-        path = path.map(v => v.toString());
-        return processPath(path.length ? path : [""], baseObj).obj;
-      }
+      return getValue(parsePathInput(args[0]), baseObj)
+    }
+  },
+  "$set": {
+    args: 2, fn: (args, baseObj) => {
+      setValue(parsePathInput(args[0]), baseObj, args[1])
+    }
+  },
+  "$delete": {
+    args: 1, fn: (args, baseObj) => {
+      return deleteValue(parsePathInput(args[0]), baseObj)
     }
   },
   "$run": {
     args: 0, fn: () => { }
-  },
-  "$local": {
-    args: 2, fn: (args, baseObj) => {
-      baseObj["local"][args[0].toString()] = args[1];
-    }
   },
   "$map": {
     args: 2, raw: true, fn: (args, baseObj) => {
@@ -463,6 +483,7 @@ const templateFuncs = {
   "$type": {
     args: 1, fn: (args) => {
       let obj = args[0];
+      /** @type {string} */
       let type = typeof obj;
       if (type === "object") {
         if (obj === null) {
@@ -478,14 +499,8 @@ const templateFuncs = {
     args: 1, fn: (args, baseObj) => {
       try {
         let path = args[0];
-        if (typeof path === "string") {
-          processPath(path.split("."), baseObj);
-          return true
-        } else if (path instanceof Array) {
-          path = path.map(v => v.toString());
-          processPath(path.length ? path : [""], baseObj);
-          return true
-        }
+        getValue(parsePathInput(path), baseObj);
+        return true;
       } catch (_) { }
       return false
     }
@@ -690,6 +705,7 @@ const templateFuncs = {
 };
 
 templateFuncs["$"] = templateFuncs["$query"];
+templateFuncs["$del"] = templateFuncs["$delete"];
 templateFuncs["$obj"] = templateFuncs["$object"];
 templateFuncs["$lit"] = templateFuncs["$literal"];
 templateFuncs["$+"] = templateFuncs["$add"];
@@ -778,45 +794,39 @@ function processTemplate(template, baseObj) {
 }
 
 function getTemplateValue(path, template) {
-  let templateBase = processPath(path);
-  let result = processTemplate(template, { "": templateBase.obj, "post": templateBase.obj, "this": templateBase.obj, "root": root, "local": {} });
+  let templateBase = processPath(path, system);
+  let result = processTemplate(template, { ...system, "": templateBase.obj, "post": templateBase.obj, "this": templateBase.obj, "local": {} });
   return result === undefined ? null : result;
 }
 
-function getValue(path) {
-  return processPath(path).obj;
+function getValue(path, baseObj) {
+  return processPath(path, baseObj).obj;
 }
 
-function setValue(path, value) {
-  if (!path.length) {
-    root = value;
-  } else {
-    let finalPath = path.pop();
+function setValue(path, baseObj, value) {
 
-    const { obj, lastLevels } = processPath(path);
+  let finalPath = path.pop();
 
-    finalPath = processLevel(obj, finalPath, lastLevels);
-    if (obj instanceof Array && finalPath >= obj.length) {
-      while (finalPath > obj.length) {
-        obj.push(null);
-      }
+  const { obj, lastLevels } = processPath(path, baseObj);
+
+  //TODO fix the last levels here
+  finalPath = processLevel(obj, finalPath, lastLevels);
+  if (obj instanceof Array && finalPath >= obj.length) {
+    while (finalPath > obj.length) {
+      obj.push(null);
     }
-    obj[finalPath] = value
   }
+  obj[finalPath] = value
 }
 
-function patchValue(path, value, isDeep) {
-  let { parent, obj, level } = processPath(path);
+
+function patchValue(path, baseObj, value, isDeep) {
+  let { parent, obj, level } = processPath(path, baseObj);
   parent[level] = merge(obj, value, isDeep);
 }
 
-function deleteValue(path) {
-  if (!path.length) {
-    let oldRoot = root;
-    root = null;
-    return oldRoot
-  }
-  const { parent, obj, lastLevels, level } = processPath(path);
+function deleteValue(path, baseObj) {
+  const { parent, obj, level } = processPath(path, baseObj);
 
   if (parent instanceof Array) {
     parent.splice(level, 1);
@@ -846,12 +856,12 @@ function startServer(jsonPath = "-", port = "8080") {
 
   if (jsonPath !== "-") {
     save = () => {
-      fs.writeFileSync(jsonPath, JSON.stringify(root));
+      fs.writeFileSync(jsonPath, JSON.stringify(system.root));
     }
     if (!fs.existsSync(jsonPath)) {
       save();
     }
-    root = JSON.parse(fs.readFileSync(jsonPath).toString());
+    system.root = JSON.parse(fs.readFileSync(jsonPath).toString());
   }
 
   http.createServer(function (req, res) {
@@ -864,6 +874,7 @@ function startServer(jsonPath = "-", port = "8080") {
     let opc = query.opc ? query.opc.toLowerCase() : "json";
     console.log(`Request: ${req.method} ${req.url}`);
     console.log(`Path: ${path?.join(".")}`);
+    path.unshift("root")
     let bodyData = '';
     req.on('data', function (chunk) {
       bodyData += chunk;
@@ -877,7 +888,7 @@ function startServer(jsonPath = "-", port = "8080") {
         }
         switch (req.method) {
           case "GET":
-            value = getValue(path);
+            value = getValue(path, system);
             switch (opc) {
               case "text":
                 res.writeHead(200, { 'Content-Type': "text/plain" });
@@ -923,7 +934,7 @@ function startServer(jsonPath = "-", port = "8080") {
                 break;
             }
 
-            setValue(path, body);
+            setValue(path, system, body);
             save()
             res.writeHead(200, { 'Content-Type': "application/json" });
             res.write(JSON.stringify({ message: "Updated" }));
@@ -937,10 +948,10 @@ function startServer(jsonPath = "-", port = "8080") {
             }
             switch (opc) {
               case "deep":
-                patchValue(path, body, true);
+                patchValue(path, system, body, true);
                 break;
               case "json":
-                patchValue(path, body, false);
+                patchValue(path, system, body, false);
                 break;
             }
             save()
@@ -948,7 +959,7 @@ function startServer(jsonPath = "-", port = "8080") {
             res.write(JSON.stringify({ message: "Patched" }));
             break;
           case "DELETE":
-            value = deleteValue(path);
+            value = deleteValue(path, system);
             save()
             switch (opc) {
               case "text":

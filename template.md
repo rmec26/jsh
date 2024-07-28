@@ -27,9 +27,38 @@ Returns the value in the `path` given.
 
 Input:
 
-* `path`: `<string|array>` - Value of the path to get. The first element must start with `@`
-  * the `string` should have the format `@.level1.value`
-  * the `array` should have the format `["@", "level1", "value"]`
+* `path`: `<string|array>` - Value of the path to get.
+  * the `string` should have the format `this.level1.value`
+  * the `array` should have the format `["this", "level1", "value"]`
+
+
+
+### `$set`
+
+Usage: `["$set", path, value]`
+
+Sets the given `value` in the `path` given.
+
+Input:
+
+* `path`: `<string|array>` - Value of the path to set.
+  * the `string` should have the format `this.level1.value`
+  * the `array` should have the format `["this", "level1", "value"]`
+* `value`: `any` - New value to set
+
+
+
+### `$delete` or `$del`
+
+Usage: `["$delete", path]`
+
+Deletes the value in the `path` given.
+
+Input:
+
+* `path`: `<string|array>` - Value of the path to delete.
+  * the `string` should have the format `this.level1.value`
+  * the `array` should have the format `["this", "level1", "value"]`
 
 
 
@@ -42,20 +71,6 @@ Processes any input given, returns nothing.
 Input:
 
 * `values`: `<any[]>` - can be any value
-
-
-
-### `$local`
-
-Usage: `["$local", id, value]`
-
-Sets the property `id` in `@local` object with `value`.
-
-Input:
-
-* `id`: `<any>` - id for the value to set.
-  * if the values isn't a `string`it will be converted to one
-  * the property will always be set directly in `@local`, even if appears to have more levels, so `["$local", "test.a"]` will __NOT__ set `["@local", "test", "a"]`/`@local.test.a` but instead will set `["@local","test.a"]`.
 
 
 
