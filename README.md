@@ -24,9 +24,24 @@ Simple api to view/edit JSON Files
 
 ## How to Run
 
-Run the command `node <json path> [<port>]`
+Run the command `node ryj.js <json path> [<port>]`
+
+* Note: If the json path given is `-` then the system will just keep the values in memory and not write anything to disk.
+
+* Note: the default port is `8080`.
+
+## Template system
 
 
-## TODO
+The template system has two functions
 
-* more template functions
+`@var.arg1` - gets the desired value
+
+* Note: If you want a string that starts with `@` you need to start it with `@@` instead so that the system doesn't try to process it as a `get` function.
+
+`[ "@", "text1", "text2",...]` - concats the values into a single string
+
+
+Available objects for the `get` function:
+* `root` - represents the root json of the system
+* `post` or `this` - represents the selected value from the path given to the `POST` HTTP call
