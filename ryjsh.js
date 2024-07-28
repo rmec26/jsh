@@ -440,25 +440,25 @@ function isEqual(a, b) {
 }
 
 const jshFuncs = {
-  "$get": {
+  "get": {
     args: 1, fn: (args, baseObj) => {
       return getValue(parsePathInput(args[0]), baseObj)
     }
   },
-  "$set": {
+  "set": {
     args: 2, fn: (args, baseObj) => {
       setValue(parsePathInput(args[0]), baseObj, args[1])
     }
   },
-  "$delete": {
+  "delete": {
     args: 1, fn: (args, baseObj) => {
       return deleteValue(parsePathInput(args[0]), baseObj)
     }
   },
-  "$run": {
+  "run": {
     args: 0, fn: () => { }
   },
-  "$map": {
+  "map": {
     args: 2, raw: true, fn: (args, baseObj) => {
       let obj = runJsh(args[0], baseObj);
       if (obj && typeof obj === "object") {
@@ -473,7 +473,7 @@ const jshFuncs = {
       }
     }
   },
-  "$kmap": {
+  "kmap": {
     args: 2, raw: true, fn: (args, baseObj) => {
       let obj = runJsh(args[0], baseObj);
       if (obj && typeof obj === "object") {
@@ -488,7 +488,7 @@ const jshFuncs = {
       }
     }
   },
-  "$size": {
+  "size": {
     args: 1, fn: (args) => {
       let obj = args[0];
       let type = typeof obj;
@@ -499,7 +499,7 @@ const jshFuncs = {
       }
     }
   },
-  "$type": {
+  "type": {
     args: 1, fn: (args) => {
       let obj = args[0];
       /** @type {string} */
@@ -514,7 +514,7 @@ const jshFuncs = {
       return type;
     }
   },
-  "$exists": {
+  "exists": {
     args: 1, fn: (args, baseObj) => {
       try {
         let path = args[0];
@@ -524,12 +524,12 @@ const jshFuncs = {
       return false
     }
   },
-  "$merge": {
+  "merge": {
     args: 2, fn: (args) => {
       return merge(args[0], args[1], !!args[2]);
     }
   },
-  "$jsh": {
+  "jsh": {
     args: 1, fn: (args, baseObj) => {
       if (typeof args[0] === "string") {
         let result = parseJsh(args[0]);
@@ -537,74 +537,74 @@ const jshFuncs = {
       }
     }
   },
-  "$add": {
+  "add": {
     args: 2, fn: (args) => {
       if (typeof args[0] === "number" && typeof args[1] === "number") {
         return args[0] + args[1];
       }
     }
   },
-  "$subtract": {
+  "subtract": {
     args: 2, fn: (args) => {
       if (typeof args[0] === "number" && typeof args[1] === "number") {
         return args[0] - args[1];
       }
     }
   },
-  "$multiply": {
+  "multiply": {
     args: 2, fn: (args) => {
       if (typeof args[0] === "number" && typeof args[1] === "number") {
         return args[0] * args[1];
       }
     }
   },
-  "$divide": {
+  "divide": {
     args: 2, fn: (args) => {
       if (typeof args[0] === "number" && typeof args[1] === "number") {
         return args[0] / args[1];
       }
     }
   },
-  "$integerDivide": {
+  "integerDivide": {
     args: 2, fn: (args) => {
       if (typeof args[0] === "number" && typeof args[1] === "number") {
         return Math.trunc(args[0] / args[1]);
       }
     }
   },
-  "$modulo": {
+  "modulo": {
     args: 2, fn: (args) => {
       if (typeof args[0] === "number" && typeof args[1] === "number") {
         return args[0] % args[1];
       }
     }
   },
-  "$truncate": {
+  "truncate": {
     args: 1, fn: (args) => {
       if (typeof args[0] === "number") {
         return Math.trunc(args[0]);
       }
     }
   },
-  "$string": {
+  "string": {
     args: 1, fn: args => toString(args[0])
   },
-  "$boolean": {
+  "boolean": {
     args: 1, fn: args => toBoolean(args[0])
   },
-  "$number": {
+  "number": {
     args: 1, fn: args => toNumber(args[0])
   },
-  "$integer": {
+  "integer": {
     args: 1, fn: args => toInteger(args[0])
   },
-  "$equals": {
+  "equals": {
     args: 2, fn: args => isEqual(args[0], args[1])
   },
-  "$notEquals": {
+  "notEquals": {
     args: 2, fn: args => !isEqual(args[0], args[1])
   },
-  "$greater": {
+  "greater": {
     args: 2, fn: args => {
       const typeA = typeof args[0];
       const typeB = typeof args[1];
@@ -613,7 +613,7 @@ const jshFuncs = {
       }
     }
   },
-  "$less": {
+  "less": {
     args: 2, fn: args => {
       const typeA = typeof args[0];
       const typeB = typeof args[1];
@@ -622,7 +622,7 @@ const jshFuncs = {
       }
     }
   },
-  "$greaterEqual": {
+  "greaterEqual": {
     args: 2, fn: args => {
       const typeA = typeof args[0];
       const typeB = typeof args[1];
@@ -631,7 +631,7 @@ const jshFuncs = {
       }
     }
   },
-  "$lessEqual": {
+  "lessEqual": {
     args: 2, fn: args => {
       const typeA = typeof args[0];
       const typeB = typeof args[1];
@@ -640,7 +640,7 @@ const jshFuncs = {
       }
     }
   },
-  "$if": {
+  "if": {
     args: 2, raw: true, fn: (args, baseObj) => {
       let check = runJsh(args[0], baseObj);
       if (check !== undefined) {
@@ -652,7 +652,7 @@ const jshFuncs = {
       }
     }
   },
-  "$join": {
+  "join": {
     args: 1, fn: args => {
       if (args[0] instanceof Array) {
         let separator = args.length > 1 && typeof args[1] === "string" ? args[1] : "";
@@ -660,7 +660,7 @@ const jshFuncs = {
       }
     }
   },
-  "$sum": {
+  "sum": {
     args: 1, fn: args => {
       if (args[0] instanceof Array) {
         return args[0].reduce((sum, v) => {
@@ -672,14 +672,14 @@ const jshFuncs = {
       }
     }
   },
-  "$slice": {
+  "slice": {
     args: 2, fn: args => {
       if ((args[0] instanceof Array || typeof args[0] === "string") && typeof args[1] === "number") {
         return args[0].slice(args[1], typeof args[2] === "number" ? args[2] : undefined);
       }
     }
   },
-  "$minimum": {
+  "minimum": {
     args: 1, fn: args => {
       if (args[0] instanceof Array) {
         let aux = args[0].filter(v => typeof v === "number");
@@ -689,7 +689,7 @@ const jshFuncs = {
       }
     }
   },
-  "$maximum": {
+  "maximum": {
     args: 1, fn: args => {
       if (args[0] instanceof Array) {
         let aux = args[0].filter(v => typeof v === "number");
@@ -701,37 +701,37 @@ const jshFuncs = {
   },
 };
 
-jshFuncs["$del"] = jshFuncs["$delete"];
-jshFuncs["$+"] = jshFuncs["$add"];
-jshFuncs["$sub"] = jshFuncs["$subtract"];
-jshFuncs["$-"] = jshFuncs["$subtract"];
-jshFuncs["$mul"] = jshFuncs["$multiply"];
-jshFuncs["$*"] = jshFuncs["$multiply"];
-jshFuncs["$div"] = jshFuncs["$divide"];
-jshFuncs["$/"] = jshFuncs["$divide"];
-jshFuncs["$idiv"] = jshFuncs["$integerDivide"];
-jshFuncs["$//"] = jshFuncs["$integerDivide"];
-jshFuncs["$mod"] = jshFuncs["$modulo"];
-jshFuncs["$%"] = jshFuncs["$modulo"];
-jshFuncs["$trunc"] = jshFuncs["$truncate"];
-jshFuncs["$str"] = jshFuncs["$string"];
-jshFuncs["$bool"] = jshFuncs["$boolean"];
-jshFuncs["$num"] = jshFuncs["$number"];
-jshFuncs["$int"] = jshFuncs["$integer"];
-jshFuncs["$eq"] = jshFuncs["$equals"];
-jshFuncs["$=="] = jshFuncs["$equals"];
-jshFuncs["$ne"] = jshFuncs["$notEquals"];
-jshFuncs["$!="] = jshFuncs["$notEquals"];
-jshFuncs["$gt"] = jshFuncs["$greater"];
-jshFuncs["$>"] = jshFuncs["$greater"];
-jshFuncs["$lt"] = jshFuncs["$less"];
-jshFuncs["$<"] = jshFuncs["$less"];
-jshFuncs["$gte"] = jshFuncs["$greaterEqual"];
-jshFuncs["$>="] = jshFuncs["$greaterEqual"];
-jshFuncs["$lte"] = jshFuncs["$lessEqual"];
-jshFuncs["$<="] = jshFuncs["$lessEqual"];
-jshFuncs["$min"] = jshFuncs["$minimum"];
-jshFuncs["$max"] = jshFuncs["$maximum"];
+jshFuncs["del"] = jshFuncs["delete"];
+jshFuncs["+"] = jshFuncs["add"];
+jshFuncs["sub"] = jshFuncs["subtract"];
+jshFuncs["-"] = jshFuncs["subtract"];
+jshFuncs["mul"] = jshFuncs["multiply"];
+jshFuncs["*"] = jshFuncs["multiply"];
+jshFuncs["div"] = jshFuncs["divide"];
+jshFuncs["/"] = jshFuncs["divide"];
+jshFuncs["idiv"] = jshFuncs["integerDivide"];
+jshFuncs["//"] = jshFuncs["integerDivide"];
+jshFuncs["mod"] = jshFuncs["modulo"];
+jshFuncs["%"] = jshFuncs["modulo"];
+jshFuncs["trunc"] = jshFuncs["truncate"];
+jshFuncs["str"] = jshFuncs["string"];
+jshFuncs["bool"] = jshFuncs["boolean"];
+jshFuncs["num"] = jshFuncs["number"];
+jshFuncs["int"] = jshFuncs["integer"];
+jshFuncs["eq"] = jshFuncs["equals"];
+jshFuncs["=="] = jshFuncs["equals"];
+jshFuncs["ne"] = jshFuncs["notEquals"];
+jshFuncs["!="] = jshFuncs["notEquals"];
+jshFuncs["gt"] = jshFuncs["greater"];
+jshFuncs[">"] = jshFuncs["greater"];
+jshFuncs["lt"] = jshFuncs["less"];
+jshFuncs["<"] = jshFuncs["less"];
+jshFuncs["gte"] = jshFuncs["greaterEqual"];
+jshFuncs[">="] = jshFuncs["greaterEqual"];
+jshFuncs["lte"] = jshFuncs["lessEqual"];
+jshFuncs["<="] = jshFuncs["lessEqual"];
+jshFuncs["min"] = jshFuncs["minimum"];
+jshFuncs["max"] = jshFuncs["maximum"];
 
 
 function callJshFunction(callInput, baseObj) {
@@ -1005,57 +1005,9 @@ function startServer(jsonPath = "-", port = "8080") {
   console.log(`Server start on port ${port} ${jsonPath === "-" ? "running in memory" : `for file ${jsonPath}`}`);
 }
 
-function testServer(jsonPath = "-", port = "8080") {
-  let save = () => { };
-
-  if (jsonPath !== "-") {
-    save = () => {
-      fs.writeFileSync(jsonPath, JSON.stringify(system.root));
-    }
-    if (!fs.existsSync(jsonPath)) {
-      save();
-    }
-    system.root = JSON.parse(fs.readFileSync(jsonPath).toString());
-  }
-
-
-  console.log(`Server test ${jsonPath === "-" ? "running in memory" : `for file ${jsonPath}`}`);
-
-
-  let testQuery = `
-
-{
-  type: ($type @),
-  size: ($size @),
-  keys: ($map @ @k),
-  values: ($map @ @v),  
-  values2: ($add 3 5),  
-  values3: [$add 3 5],  
-  random: [get,1,5,6,($add 3 5),  \\[123\\] ,[]  ]
-  random2: { get: 1,delete:6, hi : ($mul 3 5)}
-  neat: [true false null]
-  ($join  [> @this.book1.name <] |): @this.book1.price
-  a:33
-}
-`
-
-  let res = parseJsh(testQuery)
-
-  console.dir(res, { depth: 10 })
-
-
-  let templateBase = processPath(["root", "books"], system);
-  let res2 = runJsh(res, { ...system, "": templateBase.obj, "post": templateBase.obj, "this": templateBase.obj, "local": {} });
-
-  console.dir(res2, { depth: 10 })
-
-}
-
-
 let jsonPath = process.argv[2];
 let port = process.argv[3];
 
 startServer(jsonPath, port);
-// testServer(jsonPath, port);
 
 
