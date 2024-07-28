@@ -128,7 +128,7 @@ function processPath(path, baseObj) {
   return { parent, obj, lastLevels, level };
 }
 
-function processQueryBuffer(state) {
+function processParserBuffer(state) {
   if (state.buffer) {
     let possibleNum = Number(state.buffer);
     if (Number.isNaN(possibleNum)) {
@@ -156,7 +156,7 @@ function processQueryBuffer(state) {
 
 
 
-function parseQueryString(state, finalValue) {
+function parseString(state, finalValue) {
   let buffer = "";
   let isRunning = true;
   while (state.pos < state.input.length && isRunning) {
@@ -227,21 +227,21 @@ function parseVariableToList(input, pos = 0) {
   return { pos, varList };
 }
 
-function parseQueryVariable(state) {
+function parseVariable(state) {
   let { pos, varList } = parseVariableToList(state.input, state.pos);
   state.pos = pos;
   state.curr.push(["get", varList])
 }
 
 function startScope(state, type) {
-  processQueryBuffer(state);
+  processParserBuffer(state);
   state.stack.push({ curr: state.curr, type: state.type });
   state.curr = [];
   state.type = type;
 }
 
 function endScope(state, type) {
-  processQueryBuffer(state);
+  processParserBuffer(state);
   if (state.type !== type) {
     throw new BadCallError(`Attempting to close '${state.type}' scope with '${type}' end char.`);
   }
@@ -252,7 +252,7 @@ function endScope(state, type) {
   state.curr.push([type, scope]);
 }
 
-function parseQuery(input) {
+function parseJsh(input) {
   let state = {
     input,
     pos: 0,
@@ -284,7 +284,7 @@ function parseQuery(input) {
       if (state.isReading) {
         if (isWhitespace) {
           state.isReading = false;
-          processQueryBuffer(state);
+          processParserBuffer(state);
         } else if (c == "\\") {
           if (state.pos < state.input.length) {
             state.buffer += state.input[state.pos];
@@ -302,9 +302,9 @@ function parseQuery(input) {
               state.pos++;
             }
           } else if (c == "\"" || c == "'") {
-            parseQueryString(state, c);
+            parseString(state, c);
           } else if (c == "@") {
-            parseQueryVariable(state);
+            parseVariable(state);
           } else {
             state.isReading = true;
             state.buffer += c;
@@ -315,7 +315,7 @@ function parseQuery(input) {
 
 
   }
-  processQueryBuffer(state);
+  processParserBuffer(state);
 
   if (state.stack.length) {
     throw new BadCallError(`Open scopes found.`);
@@ -325,6 +325,7 @@ function parseQuery(input) {
 }
 
 function parsePathInput(path) {
+  //TODO consider converting this function to be only for processing string from the get
   if (typeof path === "string") {
     return parseVariableToList(path).varList;
   } else if (path instanceof Array) {
@@ -438,7 +439,7 @@ function isEqual(a, b) {
   }
 }
 
-const templateFuncs = {
+const jshFuncs = {
   "$get": {
     args: 1, fn: (args, baseObj) => {
       return getValue(parsePathInput(args[0]), baseObj)
@@ -459,11 +460,11 @@ const templateFuncs = {
   },
   "$map": {
     args: 2, raw: true, fn: (args, baseObj) => {
-      let obj = processTemplate(args[0], baseObj);
+      let obj = runJsh(args[0], baseObj);
       if (obj && typeof obj === "object") {
         let res = [];
         Object.entries(obj).forEach(([k, v]) => {
-          const processed = processTemplate(args[1], { ...baseObj, "v": v, "k": k })
+          const processed = runJsh(args[1], { ...baseObj, "v": v, "k": k })
           if (processed !== undefined) {
             res.push(processed);
           }
@@ -474,11 +475,11 @@ const templateFuncs = {
   },
   "$kmap": {
     args: 2, raw: true, fn: (args, baseObj) => {
-      let obj = processTemplate(args[0], baseObj);
+      let obj = runJsh(args[0], baseObj);
       if (obj && typeof obj === "object") {
         let res = {};
         Object.entries(obj).forEach(([k, v]) => {
-          const processed = processTemplate(args[1], { ...baseObj, "v": v, "k": k })
+          const processed = runJsh(args[1], { ...baseObj, "v": v, "k": k })
           if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
             res[processed.k.toString()] = processed.v;
           }
@@ -487,20 +488,6 @@ const templateFuncs = {
       }
     }
   },
-  // "$object": {
-  //   args: 0, fn: (args) => {
-  //     let result = {};
-  //     for (let v of args) {
-  //       if (v instanceof Array && v.length > 1) {
-  //         result[v[0].toString()] = v[1];
-  //       }
-  //     }
-  //     return result
-  //   }
-  // },
-  // "$literal": {
-  //   args: 1, raw: true, fn: args => args[0]
-  // },
   "$size": {
     args: 1, fn: (args) => {
       let obj = args[0];
@@ -542,25 +529,11 @@ const templateFuncs = {
       return merge(args[0], args[1], !!args[2]);
     }
   },
-  "$query": {
+  "$jsh": {
     args: 1, fn: (args, baseObj) => {
       if (typeof args[0] === "string") {
-        let result = parseQuery(args[0]);
-        return processTemplate(result, baseObj);
-      }
-    }
-  },
-  "$parse": {
-    args: 1, fn: (args) => {
-      if (typeof args[0] === "string") {
-        return parseQuery(args[0]);
-      }
-    }
-  },
-  "$exec": {
-    args: 1, fn: (args, baseObj) => {
-      if (args[0] instanceof Array) {
-        return processTemplate(args[0], baseObj);
+        let result = parseJsh(args[0]);
+        return runJsh(result, baseObj);
       }
     }
   },
@@ -625,14 +598,6 @@ const templateFuncs = {
   "$integer": {
     args: 1, fn: args => toInteger(args[0])
   },
-  //No loner needed considering jsh is a superset of json
-  // "$json": {
-  //   args: 1, fn: (args) => {
-  //     if (typeof args[0] === "string") {
-  //       return JSON.parse(args[0]);
-  //     }
-  //   }
-  // },
   "$equals": {
     args: 2, fn: args => isEqual(args[0], args[1])
   },
@@ -677,12 +642,12 @@ const templateFuncs = {
   },
   "$if": {
     args: 2, raw: true, fn: (args, baseObj) => {
-      let check = processTemplate(args[0], baseObj);
+      let check = runJsh(args[0], baseObj);
       if (check !== undefined) {
         if (toBoolean(check)) {
-          return processTemplate(args[1], baseObj);
+          return runJsh(args[1], baseObj);
         } else if (args[2]) {
-          return processTemplate(args[2], baseObj);
+          return runJsh(args[2], baseObj);
         }
       }
     }
@@ -736,74 +701,68 @@ const templateFuncs = {
   },
 };
 
-// templateFuncs["$"] = templateFuncs["$query"];
-templateFuncs["$del"] = templateFuncs["$delete"];
-templateFuncs["$obj"] = templateFuncs["$object"];
-templateFuncs["$lit"] = templateFuncs["$literal"];
-templateFuncs["$+"] = templateFuncs["$add"];
-templateFuncs["$sub"] = templateFuncs["$subtract"];
-templateFuncs["$-"] = templateFuncs["$subtract"];
-templateFuncs["$mul"] = templateFuncs["$multiply"];
-templateFuncs["$*"] = templateFuncs["$multiply"];
-templateFuncs["$div"] = templateFuncs["$divide"];
-templateFuncs["$/"] = templateFuncs["$divide"];
-templateFuncs["$idiv"] = templateFuncs["$integerDivide"];
-templateFuncs["$//"] = templateFuncs["$integerDivide"];
-templateFuncs["$mod"] = templateFuncs["$modulo"];
-templateFuncs["$%"] = templateFuncs["$modulo"];
-templateFuncs["$trunc"] = templateFuncs["$truncate"];
-templateFuncs["$str"] = templateFuncs["$string"];
-templateFuncs["$bool"] = templateFuncs["$boolean"];
-templateFuncs["$num"] = templateFuncs["$number"];
-templateFuncs["$int"] = templateFuncs["$integer"];
-templateFuncs["$eq"] = templateFuncs["$equals"];
-templateFuncs["$=="] = templateFuncs["$equals"];
-templateFuncs["$ne"] = templateFuncs["$notEquals"];
-templateFuncs["$!="] = templateFuncs["$notEquals"];
-templateFuncs["$gt"] = templateFuncs["$greater"];
-templateFuncs["$>"] = templateFuncs["$greater"];
-templateFuncs["$lt"] = templateFuncs["$less"];
-templateFuncs["$<"] = templateFuncs["$less"];
-templateFuncs["$gte"] = templateFuncs["$greaterEqual"];
-templateFuncs["$>="] = templateFuncs["$greaterEqual"];
-templateFuncs["$lte"] = templateFuncs["$lessEqual"];
-templateFuncs["$<="] = templateFuncs["$lessEqual"];
-templateFuncs["$min"] = templateFuncs["$minimum"];
-templateFuncs["$max"] = templateFuncs["$maximum"];
+jshFuncs["$del"] = jshFuncs["$delete"];
+jshFuncs["$+"] = jshFuncs["$add"];
+jshFuncs["$sub"] = jshFuncs["$subtract"];
+jshFuncs["$-"] = jshFuncs["$subtract"];
+jshFuncs["$mul"] = jshFuncs["$multiply"];
+jshFuncs["$*"] = jshFuncs["$multiply"];
+jshFuncs["$div"] = jshFuncs["$divide"];
+jshFuncs["$/"] = jshFuncs["$divide"];
+jshFuncs["$idiv"] = jshFuncs["$integerDivide"];
+jshFuncs["$//"] = jshFuncs["$integerDivide"];
+jshFuncs["$mod"] = jshFuncs["$modulo"];
+jshFuncs["$%"] = jshFuncs["$modulo"];
+jshFuncs["$trunc"] = jshFuncs["$truncate"];
+jshFuncs["$str"] = jshFuncs["$string"];
+jshFuncs["$bool"] = jshFuncs["$boolean"];
+jshFuncs["$num"] = jshFuncs["$number"];
+jshFuncs["$int"] = jshFuncs["$integer"];
+jshFuncs["$eq"] = jshFuncs["$equals"];
+jshFuncs["$=="] = jshFuncs["$equals"];
+jshFuncs["$ne"] = jshFuncs["$notEquals"];
+jshFuncs["$!="] = jshFuncs["$notEquals"];
+jshFuncs["$gt"] = jshFuncs["$greater"];
+jshFuncs["$>"] = jshFuncs["$greater"];
+jshFuncs["$lt"] = jshFuncs["$less"];
+jshFuncs["$<"] = jshFuncs["$less"];
+jshFuncs["$gte"] = jshFuncs["$greaterEqual"];
+jshFuncs["$>="] = jshFuncs["$greaterEqual"];
+jshFuncs["$lte"] = jshFuncs["$lessEqual"];
+jshFuncs["$<="] = jshFuncs["$lessEqual"];
+jshFuncs["$min"] = jshFuncs["$minimum"];
+jshFuncs["$max"] = jshFuncs["$maximum"];
 
 
-function runTemplateFunction(templateFnObj, baseObj) {
-  // try {
-  let [fn, ...args] = templateFnObj;
+function callJshFunction(callInput, baseObj) {
+  let [fn, ...args] = callInput;
   if (typeof fn !== "string") {
     throw new BadCallError("Function name in call isn't a string.")
   }
-  if (!templateFuncs[fn]) {
+  if (!jshFuncs[fn]) {
     throw new BadCallError(`Function '${fn}' doesn't exist.`)
   }
-  if (!templateFuncs[fn].raw) {
-    args = processTemplate(["list", args], baseObj);
+  if (!jshFuncs[fn].raw) {
+    args = runJsh(["list", args], baseObj);
   }
-  if (args.length >= templateFuncs[fn].args) {
-    return templateFuncs[fn].fn(args, baseObj);
+  if (args.length >= jshFuncs[fn].args) {
+    return jshFuncs[fn].fn(args, baseObj);
   }
-  //throw err if not enough args
-
-  // } catch (e) { }
+  //TODO throw err if not enough args
 }
 
 
-function processTemplate(template, baseObj) {
-  if (template && typeof template === "object") {
-    if (template instanceof Array) {
-      if (typeof template[0] === "string") {
-        if (template[1] instanceof Array) {
-          let [type, input] = template;
+function runJsh(parsedJsh, baseObj) {
+  if (parsedJsh && typeof parsedJsh === "object") {
+    if (parsedJsh instanceof Array) {
+      if (typeof parsedJsh[0] === "string") {
+        if (parsedJsh[1] instanceof Array) {
+          let [type, input] = parsedJsh;
           let res;
           switch (type) {
             case "base":
               input.forEach(v => {
-                let processed = processTemplate(v, baseObj);
+                let processed = runJsh(v, baseObj);
                 if (processed !== undefined) {
                   res = processed;
                 }
@@ -814,7 +773,7 @@ function processTemplate(template, baseObj) {
             case "list":
               res = [];
               input.forEach(v => {
-                let processed = processTemplate(v, baseObj);
+                let processed = runJsh(v, baseObj);
                 if (processed !== undefined) {
                   res.push(processed);
                 }
@@ -823,10 +782,10 @@ function processTemplate(template, baseObj) {
             case "obj":
               res = {};
               for (let i = 0; i < input.length; i += 2) {
-                let k = processTemplate(input[i], baseObj);
+                let k = runJsh(input[i], baseObj);
+                //only tries to process the value if the key returns something
                 if (k !== undefined) {
-                  //doesnt try to process the value if the key didn't return anything
-                  let v = processTemplate(input[i + 1], baseObj);
+                  let v = runJsh(input[i + 1], baseObj);
                   if (v !== undefined) {
                     res[k] = v;
                   }
@@ -834,28 +793,28 @@ function processTemplate(template, baseObj) {
               }
               return res;
             case "call":
-              return runTemplateFunction(input, baseObj);
+              return callJshFunction(input, baseObj);
             default:
-              throw new BadCallError(`Invalid template command type '${type}' given`);
+              throw new BadCallError(`Invalid JSH command type '${type}' given`);
 
           }
         } else {
-          throw new BadCallError("Template command input is not an array");
+          throw new BadCallError("JSH command input is not an array");
         }
       } else {
-        throw new BadCallError("Template command type is not a string");
+        throw new BadCallError("JSH command type is not a string");
       }
     } else {
-      throw new BadCallError("Unexpected object found when processing template")
+      throw new BadCallError("Unexpected object found when processing JSH")
     }
   }
-  return template
+  return parsedJsh
 }
 
-function getTemplateValue(path, template) {
-  let templateBase = processPath(path, system);
-  let parsedTemplate = parseQuery(template)
-  let result = processTemplate(parsedTemplate, { ...system, "": templateBase.obj, "post": templateBase.obj, "this": templateBase.obj, "local": {} });
+function processJshAndGetValue(path, jshInput) {
+  let inputBaseObj = processPath(path, system);
+  let parsedJsh = parseJsh(jshInput)
+  let result = runJsh(parsedJsh, { ...system, "": inputBaseObj.obj, "this": inputBaseObj.obj });
   return result === undefined ? null : result;
 }
 
@@ -964,7 +923,7 @@ function startServer(jsonPath = "-", port = "8080") {
             console.log(`Body: ${bodyData}`);
 
 
-            value = getTemplateValue(path, bodyData)
+            value = processJshAndGetValue(path, bodyData)
             switch (opc) {
               case "text":
                 res.writeHead(200, { 'Content-Type': "text/plain" });
@@ -1080,13 +1039,13 @@ function testServer(jsonPath = "-", port = "8080") {
 }
 `
 
-  let res = parseQuery(testQuery)
+  let res = parseJsh(testQuery)
 
   console.dir(res, { depth: 10 })
 
 
   let templateBase = processPath(["root", "books"], system);
-  let res2 = processTemplate(res, { ...system, "": templateBase.obj, "post": templateBase.obj, "this": templateBase.obj, "local": {} });
+  let res2 = runJsh(res, { ...system, "": templateBase.obj, "post": templateBase.obj, "this": templateBase.obj, "local": {} });
 
   console.dir(res2, { depth: 10 })
 
