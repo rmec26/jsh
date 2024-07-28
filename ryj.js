@@ -128,23 +128,17 @@ function processPath(path, baseObj) {
   return { parent, obj, lastLevels, level };
 }
 
-function parseVariableToList(input, pos = 0) {
+function parseVariableToList(input) {
   let varList = [];
   let buffer = "";
   let isRunning = true;
+  let pos = 0;
   while (pos < input.length && isRunning) {
     let c = input[pos];
     pos++;
-    let isWhitespace = c == " " || c == "\r" || c == "\t" || c == "\n";
-
-    if (isWhitespace) {
-      isRunning = false;
-    } else if (c == ".") {
+    if (c == ".") {
       varList.push(buffer);
       buffer = "";
-    } else if (c == "(" || c == ")") {
-      pos--;
-      isRunning = false;
     } else if (c == "\\") {
       if (pos < input.length) {
         buffer += input[pos];
@@ -160,7 +154,7 @@ function parseVariableToList(input, pos = 0) {
 }
 
 function processTemplateValue(valuePath, baseObj) {
-  if(valuePath.startsWith("@@")){
+  if (valuePath.startsWith("@@")) {
     return valuePath.slice(1);
   }
   return getValue(parseVariableToList(valuePath.slice(1)).varList, baseObj)
