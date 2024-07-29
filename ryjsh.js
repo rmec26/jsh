@@ -134,20 +134,20 @@ function processParserBuffer(state) {
     if (Number.isNaN(possibleNum)) {
       switch (state.buffer) {
         case "true":
-          state.curr.push(true);
+          state.curr.input.push(true);
           break;
         case "false":
-          state.curr.push(false);
+          state.curr.input.push(false);
           break;
         case "null":
-          state.curr.push(null);
+          state.curr.input.push(null);
           break;
         default:
-          state.curr.push(state.buffer);
+          state.curr.input.push(state.buffer);
           break;
       }
     } else {
-      state.curr.push(possibleNum);
+      state.curr.input.push(possibleNum);
     }
     state.buffer = "";
     state.isReading = false;
@@ -189,7 +189,8 @@ function parseString(state, finalValue) {
   }
 
   //If it gets to the end of the input it simply adds whatever is in the buffer
-  state.curr.push(buffer);
+  //TODO consider making this throw an error instead
+  state.curr.input.push(buffer);
 }
 
 function isWhitespaceChar(c) {
@@ -230,26 +231,23 @@ function parseVariableToList(input, pos = 0) {
 function parseVariable(state) {
   let { pos, varList } = parseVariableToList(state.input, state.pos);
   state.pos = pos;
-  state.curr.push(["get", varList])
+  state.curr.input.push({ type: "get", input: varList })
 }
 
 function startScope(state, type) {
   processParserBuffer(state);
-  state.stack.push({ curr: state.curr, type: state.type });
-  state.curr = [];
-  state.type = type;
+  state.stack.push(state.curr);
+  state.curr = { type, input: [] };
 }
 
 function endScope(state, type) {
   processParserBuffer(state);
-  if (state.type !== type) {
-    throw new BadCallError(`Attempting to close '${state.type}' scope with '${type}' end char.`);
+  if (state.curr.type !== type) {
+    throw new BadCallError(`Attempting to close '${state.curr.type}' scope with '${type}' end char.`);
   }
-  let scope = state.curr;
-  let aux = state.stack.pop();
-  state.curr = aux.curr;
-  state.type = aux.type;
-  state.curr.push([type, scope]);
+  let endScope = state.curr;
+  state.curr = state.stack.pop();
+  state.curr.input.push(endScope);
 }
 
 function parseJsh(input) {
@@ -259,8 +257,7 @@ function parseJsh(input) {
     buffer: "",
     isReading: false,
     stack: [],
-    curr: [],
-    type: "base"
+    curr: { type: "base", input: [] },
   }
 
   while (state.pos < state.input.length) {
@@ -321,7 +318,7 @@ function parseJsh(input) {
     throw new BadCallError(`Open scopes found.`);
   }
 
-  return [state.type, state.curr];
+  return state.curr;
 }
 
 function parsePathInput(path) {
@@ -743,7 +740,7 @@ function callJshFunction(callInput, baseObj) {
     throw new BadCallError(`Function '${fn}' doesn't exist.`)
   }
   if (!jshFuncs[fn].raw) {
-    args = runJsh(["list", args], baseObj);
+    args = runJsh({ type: "list", input: args }, baseObj);
   }
   if (args.length >= jshFuncs[fn].args) {
     return jshFuncs[fn].fn(args, baseObj);
@@ -754,58 +751,54 @@ function callJshFunction(callInput, baseObj) {
 
 function runJsh(parsedJsh, baseObj) {
   if (parsedJsh && typeof parsedJsh === "object") {
-    if (parsedJsh instanceof Array) {
-      if (typeof parsedJsh[0] === "string") {
-        if (parsedJsh[1] instanceof Array) {
-          let [type, input] = parsedJsh;
-          let res;
-          switch (type) {
-            case "base":
-              input.forEach(v => {
-                let processed = runJsh(v, baseObj);
-                if (processed !== undefined) {
-                  res = processed;
-                }
-              });
-              return res;
-            case "get":
-              return getValue(input, baseObj);
-            case "list":
-              res = [];
-              input.forEach(v => {
-                let processed = runJsh(v, baseObj);
-                if (processed !== undefined) {
-                  res.push(processed);
-                }
-              });
-              return res;
-            case "obj":
-              res = {};
-              for (let i = 0; i < input.length; i += 2) {
-                let k = runJsh(input[i], baseObj);
-                //only tries to process the value if the key returns something
-                if (k !== undefined) {
-                  let v = runJsh(input[i + 1], baseObj);
-                  if (v !== undefined) {
-                    res[k] = v;
-                  }
+    if (typeof parsedJsh.type === "string") {
+      if (parsedJsh.input instanceof Array) {
+        let { type, input } = parsedJsh;
+        let res;
+        switch (type) {
+          case "base":
+            input.forEach(v => {
+              let processed = runJsh(v, baseObj);
+              if (processed !== undefined) {
+                res = processed;
+              }
+            });
+            return res;
+          case "get":
+            return getValue(input, baseObj);
+          case "list":
+            res = [];
+            input.forEach(v => {
+              let processed = runJsh(v, baseObj);
+              if (processed !== undefined) {
+                res.push(processed);
+              }
+            });
+            return res;
+          case "obj":
+            res = {};
+            for (let i = 0; i < input.length; i += 2) {
+              let k = runJsh(input[i], baseObj);
+              //only tries to process the value if the key returns something
+              if (k !== undefined) {
+                let v = runJsh(input[i + 1], baseObj);
+                if (v !== undefined) {
+                  res[k] = v;
                 }
               }
-              return res;
-            case "call":
-              return callJshFunction(input, baseObj);
-            default:
-              throw new BadCallError(`Invalid JSH command type '${type}' given`);
+            }
+            return res;
+          case "call":
+            return callJshFunction(input, baseObj);
+          default:
+            throw new BadCallError(`Invalid JSH command type '${type}' given`);
 
-          }
-        } else {
-          throw new BadCallError("JSH command input is not an array");
         }
       } else {
-        throw new BadCallError("JSH command type is not a string");
+        throw new BadCallError("JSH command input is not an array");
       }
     } else {
-      throw new BadCallError("Unexpected object found when processing JSH")
+      throw new BadCallError("JSH command type is not a string");
     }
   }
   return parsedJsh
