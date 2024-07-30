@@ -211,7 +211,7 @@ function parseVariableToList(input, pos = 0) {
     } else if (c == ".") {
       varList.push(buffer);
       buffer = "";
-    } else if (c == "(" || c == ")" || c == "[" || c == "]" || c == "{" || c == "}") {
+    } else if (c === "(" || c === ")" || c === "[" || c === "]" || c === "{" || c === "}" || c === "#") {
       pos--;
       isRunning = false;
     } else if (c == "\\") {
@@ -250,6 +250,16 @@ function endScope(state, type) {
   state.curr.input.push(endScope);
 }
 
+function processComment(state) {
+  while (state.pos < state.input.length) {
+    let c = state.input[state.pos];
+    state.pos++;
+    if (c == '\n') {
+      break;
+    }
+  }
+}
+
 function parseJsh(input) {
   let state = {
     input,
@@ -276,11 +286,12 @@ function parseJsh(input) {
       startScope(state, "obj");
     } else if (c == "}") {
       endScope(state, "obj");
+    } else if (c == "#") {
+      processComment(state);
     } else {
       let isWhitespace = isWhitespaceChar(c);
       if (state.isReading) {
         if (isWhitespace) {
-          state.isReading = false;
           processParserBuffer(state);
         } else if (c == "\\") {
           if (state.pos < state.input.length) {
@@ -732,7 +743,8 @@ jshFuncs["max"] = jshFuncs["maximum"];
 
 
 function callJshFunction(callInput, baseObj) {
-  let [fn, ...args] = callInput;
+  let [fnJsh, ...args] = callInput;
+  let fn = runJsh(fnJsh, baseObj);
   if (typeof fn !== "string") {
     throw new BadCallError("Function name in call isn't a string.")
   }
