@@ -467,32 +467,64 @@ const jshFuncs = {
     args: 0, fn: () => { }
   },
   "map": {
-    args: 2, raw: true, fn: (args, baseObj) => {
+    args: 3, raw: true, fn: (args, baseObj) => {
       let obj = runJsh(args[0], baseObj);
       if (obj && typeof obj === "object") {
+        let valueVarName = parsePathInput(runJsh(args[1], baseObj));
         let res = [];
-        Object.entries(obj).forEach(([k, v]) => {
-          const processed = runJsh(args[1], { ...baseObj, "v": v, "k": k })
-          if (processed !== undefined) {
-            res.push(processed);
-          }
-        });
+        if (args.length > 3) {
+          let keyVarName = parsePathInput(runJsh(args[2], baseObj));
+          Object.entries(obj).forEach(([k, v]) => {
+            setValue([keyVarName], baseObj, k);
+            setValue([valueVarName], baseObj, v);
+            const processed = runJsh(args[3], baseObj);
+            if (processed !== undefined) {
+              res.push(processed);
+            }
+          });
+        } else {
+          Object.values(obj).forEach(v => {
+            setValue([valueVarName], baseObj, v)
+            const processed = runJsh(args[2], baseObj);
+            if (processed !== undefined) {
+              res.push(processed);
+            }
+          });
+        }
         return res;
+      } else {
+        throw new BadCallError("Map expects to receive an object or array to iterate.");
       }
     }
   },
   "kmap": {
-    args: 2, raw: true, fn: (args, baseObj) => {
+    args: 3, raw: true, fn: (args, baseObj) => {
       let obj = runJsh(args[0], baseObj);
       if (obj && typeof obj === "object") {
+        let valueVarName = parsePathInput(runJsh(args[1], baseObj));
         let res = {};
-        Object.entries(obj).forEach(([k, v]) => {
-          const processed = runJsh(args[1], { ...baseObj, "v": v, "k": k })
-          if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
-            res[processed.k.toString()] = processed.v;
-          }
-        });
+        if (args.length > 3) {
+          let keyVarName = parsePathInput(runJsh(args[2], baseObj));
+          Object.entries(obj).forEach(([k, v]) => {
+            setValue([keyVarName], baseObj, k);
+            setValue([valueVarName], baseObj, v);
+            const processed = runJsh(args[3], baseObj);
+            if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
+              res[processed.k.toString()] = processed.v;
+            }
+          });
+        } else {
+          Object.values(obj).forEach(v => {
+            setValue([valueVarName], baseObj, v)
+            const processed = runJsh(args[2], baseObj);
+            if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
+              res[toString(processed.k)] = processed.v;
+            }
+          });
+        }
         return res;
+      } else {
+        throw new BadCallError("Map expects to receive an object or array to iterate.");
       }
     }
   },
@@ -756,8 +788,9 @@ function callJshFunction(callInput, baseObj) {
   }
   if (args.length >= jshFuncs[fn].args) {
     return jshFuncs[fn].fn(args, baseObj);
+  } else {
+    throw new BadCallError(`Not enough arguments for function '${fn}'`);
   }
-  //TODO throw err if not enough args
 }
 
 
