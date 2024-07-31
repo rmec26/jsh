@@ -91,9 +91,10 @@ Maps all the values from `obj` into a list by processing each of its values with
 
 Input:
 
-* `obj`: `<object|array>` - Value to iterate.
-  * for `object` the key will be the key of each property
-  * for `array` the key will be the index of each value
+* `obj`: `<object|array|string>` - Value to iterate.
+  * for `object` the key will be the key of each property and the value will be the value of each property
+  * for `array` the key will be the index of each value and the value will be the value of said index
+  * for `string` the key will be the index of each character and the value will be the character of said index
 * `valueVar`: `<string|array>` - Path of the variable to set the value into on each interation.
 * `keyVar`: `<string|array>` - Path of the variable to set the key into on each interation, its optional.
 * `template`: `<template>` - Template used at every iteration to process the value.
@@ -110,14 +111,36 @@ Maps all the values from `obj` into an object by processing each of its values w
 
 Input:
 
-* `obj`: `<object|array>` - Value to iterate.
-  * for `object` the key will be the key of each property
-  * for `array` the key will be the index of each value
+* `obj`: `<object|array|string>` - Value to iterate.
+  * for `object` the key will be the key of each property and the value will be the value of each property
+  * for `array` the key will be the index of each value and the value will be the value of said index
+  * for `string` the key will be the index of each character and the value will be the character of said index
 * `valueVar`: `<string|array>` - Path of the variable to set the value into on each interation.
 * `keyVar`: `<string|array>` - Path of the variable to set the key into on each interation, its optional.
 * `template`: `<template>` - Template used at every iteration to process the value.
   * the final value must have the format `{ "k":<any>, "v":<any>}`.
     * If the value `k` is not a string it will be treated as one.
+
+
+
+### `for`
+
+Usage: `(for, obj, valueVar, keyVar?, template)`
+
+Is raw: `true`
+
+Processes all the values of `obj` with `template` and returns the last value returned.
+
+Input:
+
+* `obj`: `<object|array|string>` - Value to iterate.
+  * for `object` the key will be the key of each property and the value will be the value of each property
+  * for `array` the key will be the index of each value and the value will be the value of said index
+  * for `string` the key will be the index of each character and the value will be the character of said index
+* `valueVar`: `<string|array>` - Path of the variable to set the value into on each interation.
+* `keyVar`: `<string|array>` - Path of the variable to set the key into on each interation, its optional.
+* `template`: `<template>` - Template used at every iteration to process the value.
+  * the final value can be any type.
 
 
 

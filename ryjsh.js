@@ -447,6 +447,39 @@ function isEqual(a, b) {
   }
 }
 
+function iterateValue(args, baseObj, iterator, iteratorName = "Iterator") {
+  let obj = runJsh(args[0], baseObj);
+  if (typeof obj === "string") {
+    obj = [...obj];
+  }
+  if (obj && typeof obj === "object") {
+    let valueVarName = parsePathInput(runJsh(args[1], baseObj));
+    let res = [];
+    if (args.length > 3) {
+      let keyVarName = parsePathInput(runJsh(args[2], baseObj));
+      Object.entries(obj).forEach(([k, v]) => {
+        setValue([keyVarName], baseObj, k);
+        setValue([valueVarName], baseObj, v);
+        const processed = runJsh(args[3], baseObj);
+        if (processed !== undefined) {
+          iterator(processed);
+        }
+      });
+    } else {
+      Object.values(obj).forEach(v => {
+        setValue([valueVarName], baseObj, v)
+        const processed = runJsh(args[2], baseObj);
+        if (processed !== undefined) {
+          iterator(processed);
+        }
+      });
+    }
+    return res;
+  } else {
+    throw new BadCallError(`${iteratorName} expects to receive an object or array to iterate.`);
+  }
+}
+
 const jshFuncs = {
   "get": {
     args: 1, fn: (args, baseObj) => {
@@ -468,64 +501,29 @@ const jshFuncs = {
   },
   "map": {
     args: 3, raw: true, fn: (args, baseObj) => {
-      let obj = runJsh(args[0], baseObj);
-      if (obj && typeof obj === "object") {
-        let valueVarName = parsePathInput(runJsh(args[1], baseObj));
-        let res = [];
-        if (args.length > 3) {
-          let keyVarName = parsePathInput(runJsh(args[2], baseObj));
-          Object.entries(obj).forEach(([k, v]) => {
-            setValue([keyVarName], baseObj, k);
-            setValue([valueVarName], baseObj, v);
-            const processed = runJsh(args[3], baseObj);
-            if (processed !== undefined) {
-              res.push(processed);
-            }
-          });
-        } else {
-          Object.values(obj).forEach(v => {
-            setValue([valueVarName], baseObj, v)
-            const processed = runJsh(args[2], baseObj);
-            if (processed !== undefined) {
-              res.push(processed);
-            }
-          });
-        }
-        return res;
-      } else {
-        throw new BadCallError("Map expects to receive an object or array to iterate.");
-      }
+      let res = [];
+      iterateValue(args, baseObj, processed => {
+        res.push(processed);
+      }, "Map");
+      return res;
     }
   },
   "kmap": {
     args: 3, raw: true, fn: (args, baseObj) => {
-      let obj = runJsh(args[0], baseObj);
-      if (obj && typeof obj === "object") {
-        let valueVarName = parsePathInput(runJsh(args[1], baseObj));
-        let res = {};
-        if (args.length > 3) {
-          let keyVarName = parsePathInput(runJsh(args[2], baseObj));
-          Object.entries(obj).forEach(([k, v]) => {
-            setValue([keyVarName], baseObj, k);
-            setValue([valueVarName], baseObj, v);
-            const processed = runJsh(args[3], baseObj);
-            if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
-              res[processed.k.toString()] = processed.v;
-            }
-          });
-        } else {
-          Object.values(obj).forEach(v => {
-            setValue([valueVarName], baseObj, v)
-            const processed = runJsh(args[2], baseObj);
-            if (processed !== undefined && processed.k !== undefined && processed.v !== undefined) {
-              res[toString(processed.k)] = processed.v;
-            }
-          });
+      let res = {};
+      iterateValue(args, baseObj, processed => {
+        if (processed.k !== undefined && processed.v !== undefined) {
+          res[processed.k.toString()] = processed.v;
         }
-        return res;
-      } else {
-        throw new BadCallError("Map expects to receive an object or array to iterate.");
-      }
+      }, "KMap");
+      return res;
+    }
+  },
+  "for": {
+    args: 3, raw: true, fn: (args, baseObj) => {
+      let res;
+      iterateValue(args, baseObj, processed => { res = processed }, "For");
+      return res;
     }
   },
   "size": {
