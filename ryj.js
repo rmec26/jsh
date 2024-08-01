@@ -128,16 +128,15 @@ function processPath(path, baseObj) {
   return { parent, obj, lastLevels, level };
 }
 
-function parseVariableToList(input) {
-  let varList = [];
+function processVariableToList(input) {
+  let levelList = [];
   let buffer = "";
-  let isRunning = true;
   let pos = 0;
-  while (pos < input.length && isRunning) {
+  while (pos < input.length) {
     let c = input[pos];
     pos++;
     if (c == ".") {
-      varList.push(buffer);
+      levelList.push(buffer);
       buffer = "";
     } else if (c == "\\") {
       if (pos < input.length) {
@@ -149,15 +148,15 @@ function parseVariableToList(input) {
     }
   }
   //The fact that it can put the last buffer even if empty here is on purpose
-  varList.push(buffer);
-  return { pos, varList };
+  levelList.push(buffer);
+  return levelList;
 }
 
 function processTemplateValue(valuePath, baseObj) {
   if (valuePath.startsWith("@@")) {
     return valuePath.slice(1);
   }
-  return getValue(parseVariableToList(valuePath.slice(1)).varList, baseObj)
+  return getValue(processVariableToList(valuePath.slice(1)), baseObj)
 
 }
 

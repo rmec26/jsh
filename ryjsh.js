@@ -197,14 +197,13 @@ function isWhitespaceChar(c) {
   return c == " " || c == "\r" || c == "\t" || c == "\n" || c == "," || c == ";" || c == ":";
 }
 
-//consider having a alternate version for functions outside the query
-function parseVariableToList(input, pos = 0) {
+function parseVariable(state) {
   let varList = [];
   let buffer = "";
   let isRunning = true;
-  while (pos < input.length && isRunning) {
-    let c = input[pos];
-    pos++;
+  while (state.pos < state.input.length && isRunning) {
+    let c = state.input[state.pos];
+    state.pos++;
 
     if (isWhitespaceChar(c)) {
       isRunning = false;
@@ -212,12 +211,12 @@ function parseVariableToList(input, pos = 0) {
       varList.push(buffer);
       buffer = "";
     } else if (c === "(" || c === ")" || c === "[" || c === "]" || c === "{" || c === "}" || c === "#") {
-      pos--;
+      state.pos--;
       isRunning = false;
     } else if (c == "\\") {
-      if (pos < input.length) {
-        buffer += input[pos];
-        pos++;
+      if (state.pos < state.input.length) {
+        buffer += state.input[state.pos];
+        state.pos++;
       }
     } else {
       buffer += c;
@@ -225,12 +224,6 @@ function parseVariableToList(input, pos = 0) {
   }
   //The fact that it can put the last buffer even if empty here is on purpose
   varList.push(buffer);
-  return { pos, varList };
-}
-
-function parseVariable(state) {
-  let { pos, varList } = parseVariableToList(state.input, state.pos);
-  state.pos = pos;
   state.curr.input.push({ type: "get", input: varList })
 }
 
@@ -332,10 +325,33 @@ function parseJsh(input) {
   return state.curr;
 }
 
-function parsePathInput(path) {
-  //TODO consider converting this function to be only for processing string from the get
+function processVariableToList(input) {
+  let levelList = [];
+  let buffer = "";
+  let pos = 0;
+  while (pos < input.length) {
+    let c = input[pos];
+    pos++;
+    if (c == ".") {
+      levelList.push(buffer);
+      buffer = "";
+    } else if (c == "\\") {
+      if (pos < input.length) {
+        buffer += input[pos];
+        pos++;
+      }
+    } else {
+      buffer += c;
+    }
+  }
+  //The fact that it can put the last buffer even if empty here is on purpose
+  levelList.push(buffer);
+  return levelList;
+}
+
+function processPathInput(path) {
   if (typeof path === "string") {
-    return parseVariableToList(path).varList;
+    return processVariableToList(path);
   } else if (path instanceof Array) {
     if (!path.length) {
       throw new BadCallError("Path cannot be an empty array.");
@@ -453,10 +469,10 @@ function iterateValue(args, baseObj, iterator, iteratorName = "Iterator") {
     obj = [...obj];
   }
   if (obj && typeof obj === "object") {
-    let valueVarName = parsePathInput(runJsh(args[1], baseObj));
+    let valueVarName = processPathInput(runJsh(args[1], baseObj));
     let res = [];
     if (args.length > 3) {
-      let keyVarName = parsePathInput(runJsh(args[2], baseObj));
+      let keyVarName = processPathInput(runJsh(args[2], baseObj));
       Object.entries(obj).forEach(([k, v]) => {
         setValue([keyVarName], baseObj, k);
         setValue([valueVarName], baseObj, v);
@@ -483,17 +499,17 @@ function iterateValue(args, baseObj, iterator, iteratorName = "Iterator") {
 const jshFuncs = {
   "get": {
     args: 1, fn: (args, baseObj) => {
-      return getValue(parsePathInput(args[0]), baseObj)
+      return getValue(processPathInput(args[0]), baseObj)
     }
   },
   "set": {
     args: 2, fn: (args, baseObj) => {
-      setValue(parsePathInput(args[0]), baseObj, args[1])
+      setValue(processPathInput(args[0]), baseObj, args[1])
     }
   },
   "delete": {
     args: 1, fn: (args, baseObj) => {
-      return deleteValue(parsePathInput(args[0]), baseObj)
+      return deleteValue(processPathInput(args[0]), baseObj)
     }
   },
   "run": {
@@ -556,7 +572,7 @@ const jshFuncs = {
     args: 1, fn: (args, baseObj) => {
       try {
         let path = args[0];
-        getValue(parsePathInput(path), baseObj);
+        getValue(processPathInput(path), baseObj);
         return true;
       } catch (_) { }
       return false
