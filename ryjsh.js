@@ -496,6 +496,19 @@ function iterateValue(args, baseObj, iterator, iteratorName = "Iterator") {
   }
 }
 
+function typeOf(value) {
+  /** @type {string} */
+  let type = typeof value;
+  if (type === "object") {
+    if (value === null) {
+      type = "null";
+    } else if (value instanceof Array) {
+      type = "array";
+    }
+  }
+  return type;
+}
+
 const jshFuncs = {
   "get": {
     args: 1, fn: (args, baseObj) => {
@@ -542,32 +555,26 @@ const jshFuncs = {
       return res;
     }
   },
-  "size": {
-    args: 1, fn: (args) => {
-      let obj = args[0];
-      let type = typeof obj;
-      if (obj instanceof Array || type === "string") {
-        return obj.length;
-      } else if (obj && type === "object") {
-        return Object.keys(obj).length;
-      }
+  "size": [
+    {
+      args: ["array"],
+      fn: array => array.length
+    },
+    {
+      args: ["string"],
+      fn: str => str.length
+    },
+    {
+      args: ["object"],
+      fn: obj => Object.keys(obj).length
+    },
+  ],
+  "type": [
+    {
+      args: ["any"],
+      fn: a => typeOf(a)
     }
-  },
-  "type": {
-    args: 1, fn: (args) => {
-      let obj = args[0];
-      /** @type {string} */
-      let type = typeof obj;
-      if (type === "object") {
-        if (obj === null) {
-          type = "null";
-        } else if (obj instanceof Array) {
-          type = "array";
-        }
-      }
-      return type;
-    }
-  },
+  ],
   "exists": {
     args: 1, fn: (args, baseObj) => {
       try {
@@ -591,55 +598,48 @@ const jshFuncs = {
       }
     }
   },
-  "add": {
-    args: 2, fn: (args) => {
-      if (typeof args[0] === "number" && typeof args[1] === "number") {
-        return args[0] + args[1];
-      }
+  "add": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => a + b
     }
-  },
-  "subtract": {
-    args: 2, fn: (args) => {
-      if (typeof args[0] === "number" && typeof args[1] === "number") {
-        return args[0] - args[1];
-      }
+  ],
+  "subtract": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => a - b
     }
-  },
-  "multiply": {
-    args: 2, fn: (args) => {
-      if (typeof args[0] === "number" && typeof args[1] === "number") {
-        return args[0] * args[1];
-      }
+  ],
+  "multiply": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => a * b
     }
-  },
-  "divide": {
-    args: 2, fn: (args) => {
-      if (typeof args[0] === "number" && typeof args[1] === "number") {
-        return args[0] / args[1];
-      }
+  ],
+  "divide": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => a / b
     }
-  },
-  "integerDivide": {
-    args: 2, fn: (args) => {
-      if (typeof args[0] === "number" && typeof args[1] === "number") {
-        return Math.trunc(args[0] / args[1]);
-      }
+  ],
+  "integerDivide": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => Math.trunc(a / b)
     }
-  },
-  "modulo": {
-    args: 2, fn: (args) => {
-      if (typeof args[0] === "number" && typeof args[1] === "number") {
-        return args[0] % args[1];
-      }
+  ],
+  "modulo": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => a % b
     }
-  },
-  "truncate": {
-    args: 1, fn: (args) => {
-      if (typeof args[0] === "number") {
-        return Math.trunc(args[0]);
-      }
+  ],
+  "truncate": [
+    {
+      args: ["number"],
+      fn: a => Math.trunc(a)
     }
-  },
+  ],
   "string": {
     args: 1, fn: args => toString(args[0])
   },
@@ -788,6 +788,76 @@ jshFuncs["min"] = jshFuncs["minimum"];
 jshFuncs["max"] = jshFuncs["maximum"];
 
 
+function throwFinalCallError(fnName, errors) {
+  throw new BadCallError(`Error on '${fnName}':\n  ${errors.join("\n  ")}`);
+}
+
+function generateCallError(fnName, args, rest, error) {
+  return `For (${[fnName, ...args].join(", ")}${rest ? `, ...${rest}` : ""}): ${error}`;
+}
+
+/**
+ * 
+ * @param {any[]} callArgs 
+ * @param {{args:string[],rest:string,fn:Function}[]} jshFunction 
+ */
+function processCallInput(fnName, callArgs, jshFunction, baseObj) {
+  let errors = []
+  let processedValues = {};
+  mainloop:
+  for (const { args, rest, fn } of jshFunction) {
+    if (rest) {
+      if (callArgs.length < args.length) {
+        errors.push(generateCallError(fnName, args, rest, `Expected ${args.length}+ arguments, received ${callArgs.length}`))
+        continue mainloop;
+      }
+    } else {
+      if (callArgs.length !== args.length) {
+        errors.push(generateCallError(fnName, args, rest, `Expected ${args.length} arguments, received ${callArgs.length}`))
+        continue mainloop;
+      }
+    }
+    let finalArgs = []
+    for (let i = 0; i < callArgs.length; i++) {
+      const type = i < args.length ? args[i] : rest;
+      if (type === "template") {
+        finalArgs.push(callArgs[i]);
+      } else {
+        if (processedValues[i] === undefined) {
+          processedValues[i] = runJsh(callArgs[i], baseObj);
+          //this is continue and not a imediate break of the processing because this value could be treated as a template for the next possible call
+          if (processedValues[i] === undefined) {
+            errors.push(generateCallError(fnName, args, rest, `Argument ${i} call didn't return a value.`))
+            continue mainloop;
+          }
+        }
+        let value = processedValues[i];
+        if (type === "any") {
+          finalArgs.push(value);
+        } else if (type === "path") {
+          try {
+            finalArgs.push(processPathInput(value));
+          } catch (e) {
+            errors.push(generateCallError(fnName, args, rest, `Argument ${i} isn't a valid path: ${e.message}`))
+            continue mainloop;
+          }
+        } else if (type === typeOf(value)) {
+          finalArgs.push(value);
+        } else {
+          errors.push(generateCallError(fnName, args, rest, `Argument ${i} is ${typeOf(value)} instead of ${type}`))
+          continue mainloop;
+        }
+      }
+    }
+    if (rest) {
+      let restValues = finalArgs.splice(args.length, finalArgs.length - args.length);
+      return fn(...finalArgs, restValues, baseObj);
+    }
+    return fn(...finalArgs, baseObj);
+  }
+  throwFinalCallError(fnName, errors);
+}
+
 function callJshFunction(callInput, baseObj) {
   let [fnJsh, ...args] = callInput;
   let fn = runJsh(fnJsh, baseObj);
@@ -797,16 +867,20 @@ function callJshFunction(callInput, baseObj) {
   if (!jshFuncs[fn]) {
     throw new BadCallError(`Function '${fn}' doesn't exist.`)
   }
-  if (!jshFuncs[fn].raw) {
-    args = runJsh({ type: "list", input: args }, baseObj);
-  }
-  if (args.length >= jshFuncs[fn].args) {
-    return jshFuncs[fn].fn(args, baseObj);
+  //uses the new function format
+  if (jshFuncs[fn] instanceof Array) {
+    return processCallInput(fn, args, jshFuncs[fn], baseObj);
   } else {
-    throw new BadCallError(`Not enough arguments for function '${fn}'`);
+    if (!jshFuncs[fn].raw) {
+      args = runJsh({ type: "list", input: args }, baseObj);
+    }
+    if (args.length >= jshFuncs[fn].args) {
+      return jshFuncs[fn].fn(args, baseObj);
+    } else {
+      throw new BadCallError(`Not enough arguments for function '${fn}'`);
+    }
   }
 }
-
 
 function runJsh(parsedJsh, baseObj) {
   if (parsedJsh && typeof parsedJsh === "object") {
@@ -1049,7 +1123,7 @@ function startServer(jsonPath = "-", port = "8080") {
           errorStatus = 404;
         }
         res.writeHead(errorStatus, { 'Content-Type': "application/json" });
-        res.write(JSON.stringify({ error: e.message }));
+        res.write(JSON.stringify({ error: e.message.split("\n") }));
       }
       res.end();
     });
