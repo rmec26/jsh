@@ -510,21 +510,24 @@ function typeOf(value) {
 }
 
 const jshFuncs = {
-  "get": {
-    args: 1, fn: (args, baseObj) => {
-      return getValue(processPathInput(args[0]), baseObj)
+  "get": [
+    {
+      args: ["path"],
+      fn: (path, baseObj) => getValue(path, baseObj)
     }
-  },
-  "set": {
-    args: 2, fn: (args, baseObj) => {
-      setValue(processPathInput(args[0]), baseObj, args[1])
+  ],
+  "set": [
+    {
+      args: ["path", "any"],
+      fn: (path, value, baseObj) => setValue(path, baseObj, value)
     }
-  },
-  "delete": {
-    args: 1, fn: (args, baseObj) => {
-      return deleteValue(processPathInput(args[0]), baseObj)
+  ],
+  "delete": [
+    {
+      args: ["path"],
+      fn: (path, baseObj) => deleteValue(path, baseObj)
     }
-  },
+  ],
   "run": {
     args: 0, fn: () => { }
   },
@@ -575,29 +578,29 @@ const jshFuncs = {
       fn: a => typeOf(a)
     }
   ],
-  "exists": {
-    args: 1, fn: (args, baseObj) => {
-      try {
-        let path = args[0];
-        getValue(processPathInput(path), baseObj);
-        return true;
-      } catch (_) { }
-      return false
+  "exists": [
+    {
+      args: ["path"],
+      fn: (path, baseObj) => {
+        try {
+          getValue(path, baseObj);
+          return true;
+        } catch (_) { }
+        return false
+      }
     }
-  },
+  ],
   "merge": {
     args: 2, fn: (args) => {
       return merge(args[0], args[1], !!args[2]);
     }
   },
-  "jsh": {
-    args: 1, fn: (args, baseObj) => {
-      if (typeof args[0] === "string") {
-        let result = parseJsh(args[0]);
-        return runJsh(result, baseObj);
-      }
+  "jsh": [
+    {
+      args: ["string"],
+      fn: (path, baseObj) => runJsh(parseJsh(path), baseObj)
     }
-  },
+  ],
   "add": [
     {
       args: ["number", "number"],
@@ -640,80 +643,108 @@ const jshFuncs = {
       fn: a => Math.trunc(a)
     }
   ],
-  "string": {
-    args: 1, fn: args => toString(args[0])
-  },
-  "boolean": {
-    args: 1, fn: args => toBoolean(args[0])
-  },
-  "number": {
-    args: 1, fn: args => toNumber(args[0])
-  },
-  "integer": {
-    args: 1, fn: args => toInteger(args[0])
-  },
-  "equals": {
-    args: 2, fn: args => isEqual(args[0], args[1])
-  },
-  "notEquals": {
-    args: 2, fn: args => !isEqual(args[0], args[1])
-  },
-  "greater": {
-    args: 2, fn: args => {
-      const typeA = typeof args[0];
-      const typeB = typeof args[1];
-      if (typeA === typeB && (typeA === "number" || typeA === "string")) {
-        return args[0] > args[1];
-      }
+  "string": [
+    {
+      args: ["any"],
+      fn: a => toString(a)
     }
-  },
-  "less": {
-    args: 2, fn: args => {
-      const typeA = typeof args[0];
-      const typeB = typeof args[1];
-      if (typeA === typeB && (typeA === "number" || typeA === "string")) {
-        return args[0] < args[1];
-      }
+  ],
+  "boolean": [
+    {
+      args: ["any"],
+      fn: a => toBoolean(a)
     }
-  },
-  "greaterEqual": {
-    args: 2, fn: args => {
-      const typeA = typeof args[0];
-      const typeB = typeof args[1];
-      if (typeA === typeB && (typeA === "number" || typeA === "string")) {
-        return args[0] >= args[1];
-      }
+  ],
+  "number": [
+    {
+      args: ["any"],
+      fn: a => toNumber(a)
     }
-  },
-  "lessEqual": {
-    args: 2, fn: args => {
-      const typeA = typeof args[0];
-      const typeB = typeof args[1];
-      if (typeA === typeB && (typeA === "number" || typeA === "string")) {
-        return args[0] <= args[1];
-      }
+  ],
+  "integer": [
+    {
+      args: ["any"],
+      fn: a => toInteger(a)
     }
-  },
-  "if": {
-    args: 2, raw: true, fn: (args, baseObj) => {
-      let check = runJsh(args[0], baseObj);
-      if (check !== undefined) {
+  ],
+  "equals": [
+    {
+      args: ["any", "any"],
+      fn: (a, b) => isEqual(a, b)
+    }
+  ],
+  "notEquals": [
+    {
+      args: ["any", "any"],
+      fn: (a, b) => !isEqual(a, b)
+    }
+  ],
+  "greater": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => a > b
+    },
+    {
+      args: ["string", "string"],
+      fn: (a, b) => a > b
+    }
+  ],
+  "less": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => a < b
+    },
+    {
+      args: ["string", "string"],
+      fn: (a, b) => a < b
+    }
+  ],
+  "greaterEqual": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => a >= b
+    },
+    {
+      args: ["string", "string"],
+      fn: (a, b) => a >= b
+    }
+  ],
+  "lessEqual": [
+    {
+      args: ["number", "number"],
+      fn: (a, b) => a <= b
+    },
+    {
+      args: ["string", "string"],
+      fn: (a, b) => a <= b
+    }
+  ],
+  "if": [
+    {
+      args: ["any", "template", "template"],
+      fn: (check, thenTemplate, elseTemplate, baseObj) => {
+        return runJsh(toBoolean(check) ? thenTemplate : elseTemplate, baseObj);
+      }
+    },
+    {
+      args: ["any", "template"],
+      fn: (check, thenTemplate, baseObj) => {
         if (toBoolean(check)) {
-          return runJsh(args[1], baseObj);
-        } else if (args[2]) {
-          return runJsh(args[2], baseObj);
+          return runJsh(thenTemplate, baseObj);
         }
       }
     }
-  },
-  "join": {
-    args: 1, fn: args => {
-      if (args[0] instanceof Array) {
-        let separator = args.length > 1 && typeof args[1] === "string" ? args[1] : "";
-        return args[0].map(v => toString(v)).join(separator);
-      }
-    }
-  },
+  ],
+  "join": [
+    {
+      args: ["array", "string"],
+      fn: (array, separator) => array.map(v => toString(v)).join(separator)
+    },
+    {
+      args: ["array"],
+      fn: array => array.map(v => toString(v)).join("")
+    },
+  ],
   "sum": {
     args: 1, fn: args => {
       if (args[0] instanceof Array) {
