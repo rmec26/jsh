@@ -421,18 +421,21 @@ const jshFuncs = {
   "get": [
     {
       args: ["path"],
+      argsName: ["getPath"],
       fn: (path, jsh) => jsh.getValue(path)
     }
   ],
   "set": [
     {
       args: ["path", "any"],
+      argsName: ["setPath", "newValue"],
       fn: (path, value, jsh) => jsh.setValue(path, value)
     }
   ],
   "delete": [
     {
       args: ["path"],
+      argsName: ["deletePath"],
       fn: (path, jsh) => jsh.deleteValue(path)
     }
   ],
@@ -799,22 +802,24 @@ export class JSH {
           level = level.slice(1);
         }
         let result = Number.parseInt(level);
-        if (!Number.isNaN(level)) {
-          if (inverse) {
-            result = obj.length - result;
-            if (result < 0) {
-              result = 0;
-            }
-          } else if (over) {
-            result = obj.length + result - 1;
-          }
-          return result;
+        if (Number.isNaN(result)) {
+          throw new BadCallError(`The level '${level}' is not valid for the array '${lastLevels}'.`)
         }
+        if (inverse) {
+          result = obj.length - result;
+          if (result < 0) {
+            result = 0;
+          }
+        } else if (over) {
+          result = obj.length + result - 1;
+        }
+        return result;
+
       } else {
         return level;
       }
     }
-    throw new BadCallError(`The value ${lastLevels} is not an object/array.`)
+    throw new BadCallError(`The value '${lastLevels}' is not an object/array.`)
   }
 
   /**
@@ -848,7 +853,6 @@ export class JSH {
 
     const { obj, lastLevels } = this._processPath(path);
 
-    //TODO fix the last levels here
     finalPath = JSH.processLevel(obj, finalPath, lastLevels);
     if (obj instanceof Array && finalPath >= obj.length) {
       while (finalPath > obj.length) {
