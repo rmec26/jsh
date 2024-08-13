@@ -25,7 +25,7 @@ function startServer(jsonPath = "-", port = "8080") {
     let inputBaseObj = jsh.getValue(path);
     jsh.setValue("", inputBaseObj);
     jsh.setValue("this", inputBaseObj);
-    let result = jsh.eval(jshInput);
+    let result = jsh.evalJsh(jshInput);
     return result === undefined ? null : result;
   }
 

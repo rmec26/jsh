@@ -1033,7 +1033,7 @@ export class JSH {
     return parsedJsh
   }
 
-  eval(input) {
+  evalJsh(input) {
     return this.runJsh(parseJsh(input))
   }
 }
