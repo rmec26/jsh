@@ -127,4 +127,18 @@ describe("JSH Base Function", () => {
       assert.deepStrictEqual(jsh.getValue("test"), [111, 333]);
     });
   });
+
+  describe("run", () => {
+    test("should run all given inputs and return nothing", () => {
+      assert.strictEqual(jsh.evalJsh(`(run (set aaa neat) (get root))`), undefined);
+      assert.strictEqual(jsh.getValue("aaa"), "neat");
+    });
+  });
+
+  describe("runr", () => {
+    test("should run all given inputs and return the last returned value", () => {
+      assert.strictEqual(jsh.evalJsh(`(runr "hello" (get root.values.num) (set aaa yo))`), 123);
+      assert.strictEqual(jsh.getValue("aaa"), "yo");
+    });
+  });
 }); 

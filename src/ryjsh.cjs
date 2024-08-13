@@ -540,6 +540,34 @@ const jshFuncs = {
       return res;
     }
   },
+  //NOTE this new system breaks the possibility of having a parameter return nothing and simply falling back to the next one
+  //still allow calls when it receives more args than expected, simply process them and return them as the 'rest' at the end of the fn
+  //or not and make the system really explicit on what it receives or not
+  //allow the isRaw for functions that might have odd ways to handle arguments
+  //or not because it can be simulated as args:[], rest:"template"
+  "example": [
+    {
+      args: ["any", "path", "path", "template"],
+      rest: "any",
+      fn: (obj, valuePath, keyPath, template, rest, baseObj) => {
+
+      }
+    },
+  ],
+  "map2": [
+    {
+      args: ["any", "path", "path", "template"],
+      fn: (obj, valuePath, keyPath, mapping, baseObj) => {
+
+      }
+    },
+    {
+      args: ["any", "path", "template"],
+      fn: (obj, valuePath, mapping, baseObj) => {
+
+      }
+    },
+  ],
   "kmap": {
     args: 3, raw: true, fn: (args, baseObj) => {
       let res = {};
@@ -818,6 +846,10 @@ jshFuncs["<="] = jshFuncs["lessEqual"];
 jshFuncs["min"] = jshFuncs["minimum"];
 jshFuncs["max"] = jshFuncs["maximum"];
 
+
+["any", "path", "path", "template"];
+["any", "path", "template"];
+["...any"]
 
 function throwFinalCallError(fnName, errors) {
   throw new BadCallError(`Error on '${fnName}':\n  ${errors.join("\n  ")}`);

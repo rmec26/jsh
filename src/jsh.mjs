@@ -363,45 +363,60 @@ function isEqual(a, b) {
     return a === b;
   }
 }
-/**
- * 
- * @param {*} args 
- * @param {JSH} jsh 
- * @param {*} iterator 
- * @param {*} iteratorName 
- * @returns 
- */
-function iterateValue(args, jsh, iterator, iteratorName = "Iterator") {
-  let obj = jsh.runJsh(args[0]);
-  if (typeof obj === "string") {
-    obj = [...obj];
+
+function generateIterator(iteratorStart, iteratorProcessor, iteratorEnd) {
+  function iterateWithKeys(obj, valuePath, keyPath, mapping, jsh) {
+    let state = iteratorStart();
+    Object.entries(obj).forEach(([k, v]) => {
+      jsh.setValue(keyPath, k);
+      jsh.setValue(valuePath, v);
+      const processed = jsh.runJsh(mapping);
+      if (processed !== undefined) {
+        iteratorProcessor(state, processed);
+      }
+    });
+    return iteratorEnd(state);
   }
-  if (obj && typeof obj === "object") {
-    let valueVarName = JSH.processPathInput(jsh.runJsh(args[1]));
-    let res = [];
-    if (args.length > 3) {
-      let keyVarName = JSH.processPathInput(jsh.runJsh(args[2]));
-      Object.entries(obj).forEach(([k, v]) => {
-        jsh._setValue([keyVarName], k);
-        jsh._setValue([valueVarName], v);
-        const processed = jsh.runJsh(args[3]);
-        if (processed !== undefined) {
-          iterator(processed);
-        }
-      });
-    } else {
-      Object.values(obj).forEach(v => {
-        jsh._setValue([valueVarName], v)
-        const processed = jsh.runJsh(args[2]);
-        if (processed !== undefined) {
-          iterator(processed);
-        }
-      });
-    }
-    return res;
-  } else {
-    throw new BadCallError(`${iteratorName} expects to receive an object or array to iterate.`);
+
+  function iterate(obj, valuePath, mapping, jsh) {
+    let state = iteratorStart();
+    Object.values(obj).forEach(v => {
+      jsh.setValue(valuePath, v);
+      const processed = jsh.runJsh(mapping);
+      if (processed !== undefined) {
+        iteratorProcessor(state, processed);
+      }
+    });
+    return iteratorEnd(state);
   }
+
+  return [
+    {
+      args: ["array", "path", "path", "template"],
+      fn: (array, valuePath, keyPath, mapping, jsh) => iterateWithKeys(array, valuePath, keyPath, mapping, jsh)
+    },
+    {
+      args: ["array", "path", "template"],
+      fn: (array, valuePath, mapping, jsh) => iterate(array, valuePath, mapping, jsh)
+    },
+    {
+      args: ["object", "path", "path", "template"],
+      fn: (obj, valuePath, keyPath, mapping, jsh) => iterateWithKeys(obj, valuePath, keyPath, mapping, jsh)
+    },
+    {
+      args: ["object", "path", "template"],
+      fn: (obj, valuePath, mapping, jsh) => iterate(obj, valuePath, mapping, jsh)
+    },
+    {
+      args: ["string", "path", "path", "template"],
+      fn: (str, valuePath, keyPath, mapping, jsh) => iterateWithKeys([...str], valuePath, keyPath, mapping, jsh)
+    },
+    {
+      args: ["string", "path", "template"],
+      fn: (str, valuePath, mapping, jsh) => iterate([...str], valuePath, mapping, jsh)
+    },
+  ]
+
 }
 
 function typeOf(value) {
@@ -439,36 +454,59 @@ const jshFuncs = {
       fn: (path, jsh) => jsh.deleteValue(path)
     }
   ],
-  "run": {
-    args: 0, fn: () => { }
-  },
-  "map": {
-    args: 3, raw: true, fn: (args, jsh) => {
-      let res = [];
-      iterateValue(args, jsh, processed => {
-        res.push(processed);
-      }, "Map");
-      return res;
-    }
-  },
-  "kmap": {
-    args: 3, raw: true, fn: (args, jsh) => {
-      let res = {};
-      iterateValue(args, jsh, processed => {
-        if (processed.k !== undefined && processed.v !== undefined) {
-          res[processed.k.toString()] = processed.v;
+  "run": [
+    {
+      args: [],
+      rest: "template",
+      argsName: ["input"],
+      fn: (code, jsh) => {
+        for (const entry of code) {
+          jsh.runJsh(entry);
         }
-      }, "KMap");
-      return res;
+      }
     }
-  },
-  "for": {
-    args: 3, raw: true, fn: (args, jsh) => {
-      let res;
-      iterateValue(args, jsh, processed => { res = processed }, "For");
-      return res;
+  ],
+  "runr": [
+    {
+      args: [],
+      rest: "template",
+      argsName: ["input"],
+      fn: (code, jsh) => {
+        let last;
+        for (const entry of code) {
+          let aux = jsh.runJsh(entry);
+          if (aux !== undefined) {
+            last = aux
+          }
+        }
+        return last;
+      }
     }
-  },
+  ],
+  "map": generateIterator(
+    () => [],
+    (res, processed) => {
+      res.push(processed)
+    },
+    res => res
+  ),
+  "kmap": generateIterator(
+    () => ({}),
+    (res, processed) => {
+      if (processed.k !== undefined && processed.v !== undefined) {
+        res[processed.k.toString()] = processed.v;
+      }
+    },
+    res => res
+  ),
+  "for": generateIterator(
+    () => ({}),
+    (res, processed) => {
+      res.value = processed;
+
+    },
+    res => res.value
+  ),
   "size": [
     {
       args: ["array"],
@@ -917,7 +955,7 @@ export class JSH {
           continue mainloop;
         }
       }
-      let finalArgs = []
+      let finalArgs = [];
       for (let i = 0; i < callArgs.length; i++) {
         const type = i < args.length ? args[i] : rest;
         if (type === "template") {
@@ -1025,7 +1063,6 @@ export class JSH {
               return this.callJshFunction(input);
             default:
               throw new BadCallError(`Invalid JSH command type '${type}' given`);
-
           }
         } else {
           throw new BadCallError("JSH command input is not an array");
