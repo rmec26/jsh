@@ -22,6 +22,7 @@ function startServer(jsonPath = "-", port = "8080") {
   let jsh = new JSH("RYJSH");
 
   function processJshAndGetValue(path, jshInput) {
+    jsh.resetMemory("root")
     let inputBaseObj = jsh.getValue(path);
     jsh.setValue("", inputBaseObj);
     jsh.setValue("this", inputBaseObj);

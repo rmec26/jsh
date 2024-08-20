@@ -780,6 +780,7 @@ function generateCallError(fnName, args, rest, error) {
 export class JSH {
 
   constructor(system = "JSH", functions = jshFuncs) {
+    this.system = system;
     this.memory = { system };
     this.functions = functions;
   }
@@ -932,6 +933,15 @@ export class JSH {
 
   deleteValue(path) {
     return this._deleteValue(JSH.processPathInput(path));
+  }
+
+  resetMemory(...valuesToKeep) {
+    for (let k of Object.keys(this.memory)) {
+      if (!valuesToKeep.includes(k)) {
+        delete this.memory[k];
+      }
+    }
+    this.memory.system = this.system;
   }
 
   /**
