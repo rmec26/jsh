@@ -2,7 +2,7 @@
   "name": "ryj-jsh",
   "type": "module",
   "scripts": {
-    "test": "node test/testjsh.mjs",
+    "test": "node test/index.mjs",
     "build:ryjsh:dev": "bun build --compile --minify --sourcemap src/ryjsh.mjs --outfile ryjsh",
     "ryjsh": "node src/ryjsh.mjs "
   }
