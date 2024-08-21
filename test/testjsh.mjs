@@ -851,7 +851,7 @@ describe("JSH Base Function", () => {
     test("should throw a BadCallError if the given path array is empty", () => {
       assert.throws(() => jsh.evalJsh(`(get [])`), (err) => {
         assert(err instanceof BadCallError);
-        assert.strictEqual(err.message, "Error on 'get':\n  For (get, path): Argument 0 isn't a valid path: Path cannot be an empty array.");
+        assert.strictEqual(err.message, "Error on 'get':\n  For (get, path): Argument 0 is invalid: Path cannot be an empty array.");
         return true;
       });
     });
@@ -952,6 +952,228 @@ describe("JSH Base Function", () => {
     test("should run all given inputs and return the last returned value", () => {
       assert.strictEqual(jsh.evalJsh(`(runr "hello" (get root.values.num) (set aaa yo))`), 123);
       assert.strictEqual(jsh.getValue("aaa"), "yo");
+    });
+  });
+
+  describe("map", () => {
+    describe("(map, inputValue, valuePath, keyPath, mapping)", () => {
+      test("should map all values from an array", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(map @root.list val index {pos:@index,name:@val.name})`), [
+          {
+            pos: "0",
+            name: "Test 1"
+          },
+          {
+            pos: "1",
+            name: "Test 2"
+          },
+          {
+            pos: "2",
+            name: "Test 3"
+          },
+          {
+            pos: "3",
+            name: "Test 4"
+          }
+        ]);
+      });
+      test("should map all values from an object", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(map @root.books val key {key:@key,name:@val.name})`), [
+          {
+            key: "book1",
+            name: "Book 1"
+          },
+          {
+            key: "book2",
+            name: "Book 2"
+          },
+          {
+            key: "book3",
+            name: "Book 3"
+          },
+          {
+            key: "book4",
+            name: "Book 4"
+          }
+        ]);
+      });
+      test("should map all values from a string", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(map "hello" char index {pos:@index,char:@char})`), [
+          {
+            pos: "0",
+            char: "h"
+          },
+          {
+            pos: "1",
+            char: "e"
+          },
+          {
+            pos: "2",
+            char: "l"
+          },
+          {
+            pos: "3",
+            char: "l"
+          },
+          {
+            pos: "4",
+            char: "o"
+          }
+        ]);
+      });
+      test("should only include values that were returned", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(map @root.list val index (if (eq @index "2") {pos:@index,name:@val.name}))`), [
+          {
+            pos: "2",
+            name: "Test 3"
+          }
+        ]);
+      });
+    });
+    describe("(map, inputValue, valuePath, mapping)", () => {
+      test("should map all values from an array", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(map @root.list val @val.name)`), [
+          "Test 1",
+          "Test 2",
+          "Test 3",
+          "Test 4"
+        ]);
+      });
+      test("should map all values from an object", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(map @root.books val @val.name)`), [
+          "Book 1",
+          "Book 2",
+          "Book 3",
+          "Book 4"
+        ]);
+      });
+      test("should map all values from a string", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(map "hello" char @char)`), [
+          "h",
+          "e",
+          "l",
+          "l",
+          "o"
+        ]);
+      });
+      test("should only include values that were returned", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(map @root.books val (if (eq @val.id "789") @val.name))`), [
+          "Book 3"
+        ]);
+      });
+    });
+  });
+
+  describe("kmap", () => {
+    describe("(kmap, inputValue, valuePath, keyPath, mapping)", () => {
+      test("should map all values from an array", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(kmap @root.list val index {k:@index,v:@val.name})`),
+          {
+            "0": "Test 1",
+            "1": "Test 2",
+            "2": "Test 3",
+            "3": "Test 4"
+          }
+        );
+      });
+      test("should map all values from an object", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(kmap @root.books val key {k:@val.id,v:@key})`),
+          {
+            "123": "book1",
+            "456": "book2",
+            "789": "book3",
+            "321": "book4",
+          }
+        );
+      });
+      test("should map all values from a string", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(kmap "hello" char index {k:@index,v:@char})`),
+          {
+            "0": "h",
+            "1": "e",
+            "2": "l",
+            "3": "l",
+            "4": "o"
+          }
+        );
+      });
+      test("should only include values that were returned", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(kmap @root.list val index (if (eq @index "2") {k:@index,v:@val.name}))`),
+          {
+            "2": "Test 3"
+          }
+        );
+      });
+    });
+    describe("(kmap, inputValue, valuePath, mapping)", () => {
+      test("should map all values from an array", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(kmap @root.list val {k:@val.id,v:@val.name})`),
+          {
+            "111": "Test 1",
+            "222": "Test 2",
+            "333": "Test 3",
+            "444": "Test 4"
+          }
+        );
+      });
+      test("should map all values from an object", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(kmap @root.books val {k:@val.id,v:@val.author})`),
+          {
+            "123": "Author 1",
+            "456": "Author 2",
+            "789": "Author 1",
+            "321": "Author 3",
+          }
+        );
+      });
+      test("should map all values from a string", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(kmap "hello" char {k:@char,v:@char})`),
+          {
+            "h": "h",
+            "e": "e",
+            "l": "l",
+            "o": "o"
+          }
+        );
+      });
+      test("should only include values that were returned", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(kmap @root.list val (if (eq @val.id "333") {k:@val.name,v:@val.value}))`),
+          {
+            "Test 3": 91
+          }
+        );
+      });
+    });
+  });
+
+  describe("for", () => {
+    describe("(for, inputValue, valuePath, keyPath, mapping)", () => {
+      test("should process all values from an array", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(for @root.list val index (join [@index,":",@val.name]))`), "3:Test 4");
+      });
+      test("should process all values from an object", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(for @root.books val key (join [@val.id,":",@key]))`), "321:book4");
+      });
+      test("should process all values from a string", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(for "hello" char index (join [@index,":",@char]))`), "4:o");
+      });
+      test("should only include values that were returned", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(for @root.list val index (if (eq @index "2") (join [@index,":",@val.name])))`), "2:Test 3");
+      });
+    });
+    describe("(for, inputValue, valuePath,  mapping)", () => {
+      test("should process all values from an array", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(for @root.list val @val.name)`), "Test 4");
+      });
+      test("should process all values from an object", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(for @root.books val @val.id)`), "321");
+      });
+      test("should process all values from a string", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(for "hello" char @char)`), "o");
+      });
+      test("should only include values that were returned", () => {
+        assert.deepStrictEqual(jsh.evalJsh(`(for @root.list val (if (eq @val.id "333") @val.name))`), "Test 3");
+      });
     });
   });
 }); 

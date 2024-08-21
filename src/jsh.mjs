@@ -365,56 +365,44 @@ function isEqual(a, b) {
 }
 
 function generateIterator(iteratorStart, iteratorProcessor, iteratorEnd) {
-  function iterateWithKeys(obj, valuePath, keyPath, mapping, jsh) {
-    let state = iteratorStart();
-    Object.entries(obj).forEach(([k, v]) => {
-      jsh.setValue(keyPath, k);
-      jsh.setValue(valuePath, v);
-      const processed = jsh.runJsh(mapping);
-      if (processed !== undefined) {
-        iteratorProcessor(state, processed);
-      }
-    });
-    return iteratorEnd(state);
-  }
-
-  function iterate(obj, valuePath, mapping, jsh) {
-    let state = iteratorStart();
-    Object.values(obj).forEach(v => {
-      jsh.setValue(valuePath, v);
-      const processed = jsh.runJsh(mapping);
-      if (processed !== undefined) {
-        iteratorProcessor(state, processed);
-      }
-    });
-    return iteratorEnd(state);
-  }
-
   return [
     {
-      args: ["array", "path", "path", "template"],
-      fn: (array, valuePath, keyPath, mapping, jsh) => iterateWithKeys(array, valuePath, keyPath, mapping, jsh)
+      args: [["or", "array", "object", "string"], "path", "path", "template"],
+      argsName: ["inputValue", "valuePath", "keyPath", "mapping"],
+      fn: (obj, valuePath, keyPath, mapping, jsh) => {
+        if (typeOf(obj) === "string") {
+          obj = [...obj];
+        }
+        let state = iteratorStart();
+        Object.entries(obj).forEach(([k, v]) => {
+          jsh.setValue(keyPath, k);
+          jsh.setValue(valuePath, v);
+          const processed = jsh.runJsh(mapping);
+          if (processed !== undefined) {
+            iteratorProcessor(state, processed);
+          }
+        });
+        return iteratorEnd(state);
+      }
     },
     {
-      args: ["array", "path", "template"],
-      fn: (array, valuePath, mapping, jsh) => iterate(array, valuePath, mapping, jsh)
-    },
-    {
-      args: ["object", "path", "path", "template"],
-      fn: (obj, valuePath, keyPath, mapping, jsh) => iterateWithKeys(obj, valuePath, keyPath, mapping, jsh)
-    },
-    {
-      args: ["object", "path", "template"],
-      fn: (obj, valuePath, mapping, jsh) => iterate(obj, valuePath, mapping, jsh)
-    },
-    {
-      args: ["string", "path", "path", "template"],
-      fn: (str, valuePath, keyPath, mapping, jsh) => iterateWithKeys([...str], valuePath, keyPath, mapping, jsh)
-    },
-    {
-      args: ["string", "path", "template"],
-      fn: (str, valuePath, mapping, jsh) => iterate([...str], valuePath, mapping, jsh)
-    },
+      args: [["or", "array", "object", "string"], "path", "template"],
+      argsName: ["inputValue", "valuePath", "mapping"],
+      fn: (obj, valuePath, mapping, jsh) => {
+        if (typeOf(obj) === "string") {
+          obj = [...obj];
+        }
+        let state = iteratorStart();
+        Object.values(obj).forEach(v => {
+          jsh.setValue(valuePath, v);
+          const processed = jsh.runJsh(mapping);
+          if (processed !== undefined) {
+            iteratorProcessor(state, processed);
+          }
+        });
+        return iteratorEnd(state);
+      }
+    }
   ]
 
 }
@@ -616,7 +604,7 @@ const jshFuncs = {
   "kmap": generateIterator(
     () => ({}),
     (res, processed) => {
-      if (processed.k !== undefined && processed.v !== undefined) {
+      if (processed && processed.k !== undefined && processed.v !== undefined) {
         res[processed.k.toString()] = processed.v;
       }
     },
@@ -626,7 +614,6 @@ const jshFuncs = {
     () => ({}),
     (res, processed) => {
       res.value = processed;
-
     },
     res => res.value
   ),
@@ -1103,20 +1090,12 @@ export class JSH {
             }
           }
           let value = processedValues[i];
-          if (type === "any") {
-            finalArgs.push(value);
-          } else if (type === "path") {
-            try {
-              finalArgs.push(JSH.processPathInput(value));
-            } catch (e) {
-              errors.push(generateCallError(fnName, args, rest, `Argument ${i} isn't a valid path: ${e.message}`))
-              continue mainloop;
-            }
-          } else if (type === typeOf(value)) {
-            finalArgs.push(value);
-          } else {
-            errors.push(generateCallError(fnName, args, rest, `Argument ${i} is ${typeOf(value)} instead of ${type}`))
+          let [finalValue, typeError] = checkTypeOf(value, type);
+          if (typeError) {
+            errors.push(generateCallError(fnName, args, rest, `Argument ${i} is invalid: ${typeError}`))
             continue mainloop;
+          } else {
+            finalArgs.push(finalValue);
           }
         }
       }

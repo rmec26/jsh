@@ -24,123 +24,180 @@ null - defines a `null` value
 
 ## Funtions
 
-If a function is raw it means that the processing of any input is done by the function itself instead of being done before it.
+This is a list of all avaiilable functions on the system.
 
 ### `get`
 
-Usage: `(get, path)`
+#### `(get, getPath)`
 
-Returns the value in the `path` given.
+Returns the value in the given path.
 
-Input:
+Throws error if no value exists in the given path.
 
-* `path`: `<string|array>` - Value of the path to get.
-  * the `string` should have the format `this.level1.value`
-  * the `array` should have the format `["this", "level1", "value"]`
+| Param | Type | Description |
+|---|---|---|
+| getPath | `path` | Path of the value to get |
 
 
 
 ### `set`
 
-Usage: `(set, path, value)`
+#### `(set, setPath, newValue)`
 
-Sets the given `value` in the `path` given.
+Sets the value in the given path.
 
-Input:
+Throws error if the parent value doesn't exist or if it can't have the desired parameter set.
 
-* `path`: `<string|array>` - Value of the path to set.
-  * the `string` should have the format `this.level1.value`
-  * the `array` should have the format `["this", "level1", "value"]`
-* `value`: `any` - New value to set
+| Param | Type | Description |
+|---|---|---|
+| setPath | `path` | Path of the value to set |
+| newValue | `any` | New value to set |
 
 
 
 ### `delete` or `del`
 
-Usage: `(delete, path)`
+#### `(delete, deletePath)`
 
-Deletes the value in the `path` given.
+Deletes the value in the given path and returns it.
 
-Input:
+Throws error if no value exists in the given path.
 
-* `path`: `<string|array>` - Value of the path to delete.
-  * the `string` should have the format `this.level1.value`
-  * the `array` should have the format `["this", "level1", "value"]`
+| Param | Type | Description |
+|---|---|---|
+| deletePath | `path` | Path of the value to delete |
 
 
 
 ### `run`
 
-Usage: `(run, ...values)`
+#### `(run, ...input)`
 
-Processes any input given, returns nothing.
+Processes any `input` given, returns nothing.
 
-Input:
+| Param | Type | Description |
+|---|---|---|
+| ...input | `template` | input that is run |
 
-* `values`: `<any[]>` - can be any value
+
+
+### `runr`
+
+#### `(runr, ...input)`
+
+Processes any `input` given, returns the last value returned by an input.
+
+| Param | Type | Description |
+|---|---|---|
+| ...input | `template` | input that is run |
+
+#### Notes
+This returns the last value from **all** the inputs and not the result from the last one.
+
+e.g. given `(runr, (call1), (call2), (call3))` where `call1` and `call2` return a value but `call3` doesn't the result from the `runr` will be the same as `call2`.
 
 
 
 ### `map`
 
-Usage: `(map, obj, valueVar, keyVar?, template)`
+#### `(map, inputValue, valuePath, keyPath, mapping)`
 
-Is raw: `true`
+Maps all the values from `inputValue` into a new array by processing each of its values with the `mapping`.
 
-Maps all the values from `obj` into a list by processing each of its values with `template`.
+If the `mapping` doesn't return a value then it will simply be ignored in the final result.
 
-Input:
+For each iteration it sets the variable in the `valuePath` with the current value on the array/object or the current character on the string
 
-* `obj`: `<object|array|string>` - Value to iterate.
-  * for `object` the key will be the key of each property and the value will be the value of each property
-  * for `array` the key will be the index of each value and the value will be the value of said index
-  * for `string` the key will be the index of each character and the value will be the character of said index
-* `valueVar`: `<string|array>` - Path of the variable to set the value into on each interation.
-* `keyVar`: `<string|array>` - Path of the variable to set the key into on each interation, its optional.
-* `template`: `<template>` - Template used at every iteration to process the value.
-  * the final value can be any type.
+For each iteration it sets the variable in the `keyPath` with the current index, **as a `string`**, on the array/string or the current key on the object
+
+| Param | Type | Description |
+|---|---|---|
+| inputValue | `[or,array,object,string]` | input value that is processed |
+| valuePath | `path` | path to set the current value into |
+| keyPath | `path` | path to set the current index/key into |
+| mapping | `template` | template run at each iteration that returns the new value to map to |
+
+#### `(map, inputValue, valuePath, mapping)`
+
+Maps all the values from `inputValue` into a new array by processing each of its values with the `mapping`.
+
+If the `mapping` doesn't return a value then it will simply be ignored in the final result.
+
+For each iteration it sets the variable in the `valuePath` with the current value on the array/object or the current character on the string
+
+| Param | Type | Description |
+|---|---|---|
+| inputValue | `[or,array,object,string]` | input value that is processed |
+| valuePath | `path` | path to set the current value into |
+| mapping | `template` | template run at each iteration that returns the new value to map to |
+
 
 
 ### `kmap`
 
-Usage: `(kmap, obj, valueVar, keyVar?, template)`
+#### `(kmap, inputValue, valuePath, keyPath, mapping)`
 
-Is raw: `true`
+Maps all the values from `inputValue` into a single object by processing each of its values with the `mapping`.
 
-Maps all the values from `obj` into an object by processing each of its values with `template`.
+The `mapping` return value must have the format `{k:any,v:any}`, if it isn't or if it doesn't return anything it is simply ignored.
 
-Input:
+For each iteration it sets the variable in the `valuePath` with the current value on the array/object or the current character on the string
 
-* `obj`: `<object|array|string>` - Value to iterate.
-  * for `object` the key will be the key of each property and the value will be the value of each property
-  * for `array` the key will be the index of each value and the value will be the value of said index
-  * for `string` the key will be the index of each character and the value will be the character of said index
-* `valueVar`: `<string|array>` - Path of the variable to set the value into on each interation.
-* `keyVar`: `<string|array>` - Path of the variable to set the key into on each interation, its optional.
-* `template`: `<template>` - Template used at every iteration to process the value.
-  * the final value must have the format `{ "k":<any>, "v":<any>}`.
-    * If the value `k` is not a string it will be treated as one.
+For each iteration it sets the variable in the `keyPath` with the current index, **as a `string`**, on the array/string or the current key on the object
+
+| Param | Type | Description |
+|---|---|---|
+| inputValue | `[or,array,object,string]` | input value that is processed |
+| valuePath | `path` | path to set the current value into |
+| keyPath | `path` | path to set the current index/key into |
+| mapping | `template` | template run at each iteration that returns the new value to map into the final object |
+
+#### `(kmap, inputValue, valuePath, mapping)`
+
+Maps all the values from `inputValue` into a single object by processing each of its values with the `mapping`.
+
+The `mapping` return value must have the format `{k:any,v:any}`, if it isn't or if it doesn't return anything it is simply ignored.
+
+For each iteration it sets the variable in the `valuePath` with the current value on the array/object or the current character on the string
+
+| Param | Type | Description |
+|---|---|---|
+| inputValue | `[or,array,object,string]` | input value that is processed |
+| valuePath | `path` | path to set the current value into |
+| mapping | `template` | template run at each iteration that returns the new value to map into the final object |
 
 
 
 ### `for`
 
-Usage: `(for, obj, valueVar, keyVar?, template)`
+#### `(for, inputValue, valuePath, keyPath, mapping)`
 
-Is raw: `true`
+Processes all the values from `inputValue` with the `mapping` and returns the result of the last processed value.
 
-Processes all the values of `obj` with `template` and returns the last value returned.
+For each iteration it sets the variable in the `valuePath` with the current value on the array/object or the current character on the string
 
-Input:
+For each iteration it sets the variable in the `keyPath` with the current index, **as a `string`**, on the array/string or the current key on the object
 
-* `obj`: `<object|array|string>` - Value to iterate.
-  * for `object` the key will be the key of each property and the value will be the value of each property
-  * for `array` the key will be the index of each value and the value will be the value of said index
-  * for `string` the key will be the index of each character and the value will be the character of said index
-* `valueVar`: `<string|array>` - Path of the variable to set the value into on each interation.
-* `keyVar`: `<string|array>` - Path of the variable to set the key into on each interation, its optional.
-* `template`: `<template>` - Template used at every iteration to process the value.
-  * the final value can be any type.
+| Param | Type | Description |
+|---|---|---|
+| inputValue | `[or,array,object,string]` | input value that is processed |
+| valuePath | `path` | path to set the current value into |
+| keyPath | `path` | path to set the current index/key into |
+| mapping | `template` | template run at each iteration |
+
+#### `(for, inputValue, valuePath, keyPath, mapping)`
+
+Processes all the values from `inputValue` with the `mapping` and returns the result of the last processed value.
+
+Only the last value will be returned if the mapping itseft returns a value.
+
+For each iteration it sets the variable in the `valuePath` with the current value on the array/object or the current character on the string
+
+| Param | Type | Description |
+|---|---|---|
+| inputValue | `[or,array,object,string]` | input value that is processed |
+| valuePath | `path` | path to set the current value into |
+| mapping | `template` | template run at each iteration |
 
 
 
