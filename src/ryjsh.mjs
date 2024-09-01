@@ -21,12 +21,12 @@ const VALID_OPTIONS = {
 function startServer(jsonPath = "-", port = "8080") {
   let jsh = new JSH("RYJSH");
 
-  function processJshAndGetValue(path, jshInput) {
+  async function processJshAndGetValue(path, jshInput) {
     jsh.resetMemory("root")
     let inputBaseObj = jsh.getValue(path);
     jsh.setValue("", inputBaseObj);
     jsh.setValue("this", inputBaseObj);
-    let result = jsh.evalJsh(jshInput);
+    let result = await jsh.evalJsh(jshInput);
     return result === undefined ? null : result;
   }
 
@@ -83,7 +83,7 @@ function startServer(jsonPath = "-", port = "8080") {
           case "POST":
             console.log(`Body: ${bodyData}`);
 
-            value = processJshAndGetValue(path, bodyData)
+            value = await processJshAndGetValue(path, bodyData)
             switch (opc) {
               case "text":
                 res.writeHead(200, { 'Content-Type': "text/plain" });

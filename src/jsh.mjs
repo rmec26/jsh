@@ -369,37 +369,37 @@ function generateIterator(iteratorStart, iteratorProcessor, iteratorEnd) {
     {
       args: [["or", "array", "object", "string"], "path", "path", "template"],
       argsName: ["inputValue", "valuePath", "keyPath", "mapping"],
-      fn: (obj, valuePath, keyPath, mapping, jsh) => {
+      fn: async (obj, valuePath, keyPath, mapping, jsh) => {
         if (typeOf(obj) === "string") {
           obj = [...obj];
         }
         let state = iteratorStart();
-        Object.entries(obj).forEach(([k, v]) => {
+        for (const [k, v] of Object.entries(obj)) {
           jsh.setValue(keyPath, k);
           jsh.setValue(valuePath, v);
-          const processed = jsh.runJsh(mapping);
+          const processed = await jsh.runJsh(mapping);
           if (processed !== undefined) {
             iteratorProcessor(state, processed);
           }
-        });
+        };
         return iteratorEnd(state);
       }
     },
     {
       args: [["or", "array", "object", "string"], "path", "template"],
       argsName: ["inputValue", "valuePath", "mapping"],
-      fn: (obj, valuePath, mapping, jsh) => {
+      fn: async (obj, valuePath, mapping, jsh) => {
         if (typeOf(obj) === "string") {
           obj = [...obj];
         }
         let state = iteratorStart();
-        Object.values(obj).forEach(v => {
+        for (const v of Object.values(obj)) {
           jsh.setValue(valuePath, v);
-          const processed = jsh.runJsh(mapping);
+          const processed = await jsh.runJsh(mapping);
           if (processed !== undefined) {
             iteratorProcessor(state, processed);
           }
-        });
+        };
         return iteratorEnd(state);
       }
     }
@@ -570,9 +570,9 @@ const jshFuncs = {
       args: [],
       rest: "template",
       argsName: ["input"],
-      fn: (code, jsh) => {
+      fn: async (code, jsh) => {
         for (const entry of code) {
-          jsh.runJsh(entry);
+          await jsh.runJsh(entry);
         }
       }
     }
@@ -582,10 +582,10 @@ const jshFuncs = {
       args: [],
       rest: "template",
       argsName: ["input"],
-      fn: (code, jsh) => {
+      fn: async (code, jsh) => {
         let last;
         for (const entry of code) {
-          let aux = jsh.runJsh(entry);
+          let aux = await jsh.runJsh(entry);
           if (aux !== undefined) {
             last = aux
           }
@@ -617,6 +617,7 @@ const jshFuncs = {
     },
     res => res.value
   ),
+  //TODO fix with [or]
   "size": [
     {
       args: ["array"],
@@ -889,10 +890,32 @@ function generateCallError(fnName, args, rest, error) {
 
 export class JSH {
 
-  constructor(system = "JSH", functions = jshFuncs) {
+  constructor(system = "JSH", functions) {
     this.system = system;
     this.memory = { system };
-    this.functions = functions;
+    this.functions = { ...jshFuncs };
+
+    let toCopy = [];
+    let toDelete = [];
+    let toSet = [];
+    for (let [k, v] of Object.entries(functions)) {
+      if (v === null) {
+        toDelete.push(k);
+      } else if (typeof v === "string") {
+        toCopy.push([k, v]);
+      } else {
+        toSet.push([k, v]);
+      }
+    }
+    for (let [newFn, currFn] of toCopy) {
+      this.functions[newFn] = this.functions[currFn];
+    }
+    for (let fn of toDelete) {
+      delete this.functions[fn];
+    }
+    for (let [fnName, fn] of toSet) {
+      this.functions[fnName] = structuredClone(fn);
+    }
   }
 
   static processVariableToList(input) {
@@ -1058,8 +1081,9 @@ export class JSH {
    * 
    * @param {any[]} callArgs 
    * @param {{args:string[],rest:string,fn:Function}[]} jshFunction 
+   * @returns {Promise<any>}
    */
-  processCallInput(fnName, callArgs, jshFunction) {
+  async processCallInput(fnName, callArgs, jshFunction) {
     let errors = []
     let processedValues = {};
     mainloop:
@@ -1082,7 +1106,7 @@ export class JSH {
           finalArgs.push(callArgs[i]);
         } else {
           if (processedValues[i] === undefined) {
-            processedValues[i] = this.runJsh(callArgs[i]);
+            processedValues[i] = await this.runJsh(callArgs[i]);
             //this is continue and not a imediate break of the processing because this value could be treated as a template for the next possible call
             if (processedValues[i] === undefined) {
               errors.push(generateCallError(fnName, args, rest, `Argument ${i} call didn't return a value.`))
@@ -1108,9 +1132,14 @@ export class JSH {
     throwFinalCallError(fnName, errors);
   }
 
-  callJshFunction(callInput) {
+  /**
+   * 
+   * @param {*} callInput 
+   * @returns {Promise<any>}
+   */
+  async callJshFunction(callInput) {
     let [fnJsh, ...args] = callInput;
-    let fn = this.runJsh(fnJsh);
+    let fn = await this.runJsh(fnJsh);
     if (typeof fn !== "string") {
       throw new BadCallError("Function name in call isn't a string.")
     }
@@ -1120,9 +1149,9 @@ export class JSH {
     //uses the new function format
     if (jshFuncs[fn] instanceof Array) {
       return this.processCallInput(fn, args, jshFuncs[fn]);
-    } else {
+    } else {//TODO remove this after porting all functions
       if (!jshFuncs[fn].raw) {
-        args = this.runJsh({ type: "list", input: args });
+        args = await this.runJsh({ type: "list", input: args });
       }
       if (args.length >= jshFuncs[fn].args) {
         return jshFuncs[fn].fn(args, this);
@@ -1132,7 +1161,12 @@ export class JSH {
     }
   }
 
-  runJsh(parsedJsh) {
+  /**
+   * 
+   * @param {*} parsedJsh 
+   * @returns {Promise<any>}
+   */
+  async runJsh(parsedJsh) {
     if (parsedJsh && typeof parsedJsh === "object") {
       if (typeof parsedJsh.type === "string") {
         if (parsedJsh.input instanceof Array) {
@@ -1140,31 +1174,31 @@ export class JSH {
           let res;
           switch (type) {
             case "base":
-              input.forEach(v => {
-                let processed = this.runJsh(v);
+              for (const v of input) {
+                let processed = await this.runJsh(v);
                 if (processed !== undefined) {
                   res = processed;
                 }
-              });
+              };
               return res;
             case "get":
               return this._getValue(input);
             case "list":
               res = [];
-              input.forEach(v => {
-                let processed = this.runJsh(v);
+              for (const v of input) {
+                let processed = await this.runJsh(v);
                 if (processed !== undefined) {
                   res.push(processed);
                 }
-              });
+              };
               return res;
             case "obj":
               res = {};
               for (let i = 0; i < input.length; i += 2) {
-                let k = this.runJsh(input[i]);
+                let k = await this.runJsh(input[i]);
                 //only tries to process the value if the key returns something
                 if (k !== undefined) {
-                  let v = this.runJsh(input[i + 1]);
+                  let v = await this.runJsh(input[i + 1]);
                   if (v !== undefined) {
                     res[k] = v;
                   }
@@ -1185,7 +1219,11 @@ export class JSH {
     }
     return parsedJsh
   }
-
+  /**
+   * 
+   * @param {*} input 
+   * @returns {Promise<any>}
+   */
   evalJsh(input) {
     return this.runJsh(parseJsh(input))
   }
