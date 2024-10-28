@@ -3,6 +3,8 @@
 import { processPathInput } from "./path.mjs";
 import { toString } from "./converters.mjs";
 
+const simpleTypes = ["string", "number", "boolean", "null", "array", "object"];
+
 export function typeOf(value) {
   /** @type {string} */
   let type = typeof value;
@@ -50,43 +52,11 @@ export function checkTypeOf(value, type) {
       }
     }
 
-    if (type === "positive") {
-      if (valueType === "number") {
-        if (value > 0) {
-          return [value];
-        }
-        return [null, "Is a number but not positive"];
-      } else {
-        return [null, `${valueType} is not a number`];
-      }
-    }
 
-    if (type === "negative") {
-      if (valueType === "number") {
-        if (value < 0) {
-          return [value];
-        }
-        return [null, "Is a number but not negative"];
-      } else {
-        return [null, `${valueType} is not a number`];
-      }
-    }
-
-    if (type === "zero") {
-      if (valueType === "number") {
-        if (value === 0) {
-          return [value];
-        }
-        return [null, "Is a number but not zero"];
-      } else {
-        return [null, `${valueType} is not a number`];
-      }
-    }
-
-    return [null, `${valueType} value is not of ${type} type`];
+    return [null, simpleTypes.includes(type) ? `${valueType} value is not of ${type} type` : `'${type}' is not a valid simple type`];
   } else if (typeFormat === "array") {
     if (type.length < 2) {
-      return [null, `${JSON.stringify(type)} is not a valid array type`]
+      return [null, `Complex types must have inner types`]
     }
     let [mainType, ...innerTypes] = type;
     mainType = mainType.trim().toLowerCase();
@@ -114,6 +84,77 @@ export function checkTypeOf(value, type) {
       } else {
         return [null, `${valueType} is not an object`];
       }
+    } else if (mainType === "number" || mainType === "integer") {
+      if (valueType === "number") {
+        if (mainType === "integer" && Math.trunc(value) !== value) {
+          return [null, "Is a number but not an integer"];
+        }
+
+        let isPositive = false;
+        let isNegative = false;
+        let isZero = false;
+
+        for (let t of innerTypes) {
+          t = t.trim().toLowerCase();
+          if (t === "positive" || t === "pos" || t === "+") {
+            isPositive = true;
+          } else if (t === "negative" || t === "neg" || t === "-") {
+            isNegative = true;
+          } else if (t === "zero" || t === "z") {
+            isZero = true;
+          } else {
+            [...t].forEach(c => {
+              if (c === "p" || c === "+") {
+                isPositive = true;
+              } else if (c === "n" || c === "-") {
+                isNegative = true;
+              } else if (c === "z" || c === "0") {
+                isZero = true;
+              }
+            })
+          }
+        }
+        // one of the conditions is different
+        if (isPositive != isNegative || isPositive != isZero) {
+          // both isPositive and isNegative are true and isZero is false so it must be a non-zero value or
+          // both isPositive and isNegative are false and isZero is true so it must only be a zero value
+          if (isPositive == isNegative) {
+            if (isZero) {// it should be only zero
+              if (value !== 0) {
+                return [null, "Is a number but not zero"];
+              }
+            } else {// it should be not zero
+              if (value === 0) {
+                return [null, "Is a number but its zero"];
+              }
+            }
+            // both isPositive and isZero are true and isNegative is false so it must be a non-negative value or
+            // both isPositive and isZero are false and isNegative is true so it must only be a negative value
+          } else if (isPositive == isZero) {
+            if (isNegative) {// it should be only negative
+              if (value >= 0) {
+                return [null, "Is a number but not negative"];
+              }
+            } else {// it should be not negative
+              if (value < 0) {
+                return [null, "Is a number but its negative"];
+              }
+            }
+            // both isNegative and isZero are false and isPositive is true so it must only be a positive value
+          } else if (isPositive) {
+            if (value <= 0) {
+              return [null, "Is a number but not positive"];
+            }
+            // both isNegative and isZero are true and isPositive is false so it must be a non-positive value
+          } else if (value > 0) {
+            return [null, "Is a number but its positive"];
+          }
+        }
+
+        return [value];
+      } else {
+        return [null, `${valueType} is not a number`];
+      }
     } else if (mainType === "and") {
       for (const t of innerTypes) {
         let result = checkTypeOf(value, t);
@@ -131,7 +172,7 @@ export function checkTypeOf(value, type) {
       }
       return [null, `${valueType} is not any of the types ${innerTypes.map(t => toString(t)).join(", ")}`];
     } else {
-      return [null, `${mainType} is not a valid main type`]
+      return [null, `${mainType} is not a valid complex type`]
     }
   } else {
     return [null, "Type must be in a string or array format"]

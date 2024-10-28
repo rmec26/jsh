@@ -150,7 +150,7 @@ export const jshFuncs = {
   ],
   "merge": [
     {
-      args: ["any", "any", ["and", "integer", "number"]],
+      args: ["any", "any", ["integer", "positive", "zero"]],
       argsName: ["obj1", "obj2", "depth"],
       fn: (obj1, obj2, depth) => {
         return merge(obj1, obj2, depth);
@@ -346,7 +346,7 @@ export const jshFuncs = {
   // possible ways to implement
   // filledArray - array has to have some value
   // notEmpty - more generic type that checks if the given value is not empty, would work with arrays, objects, string. Would be combined with an 'and'
-  // [size min max] - and extension of the notEmpty that allows you to set the expected size, it receives the min and max size or just the min, in this case it would be [size,1]
+  // [size min max] - an extension of the notEmpty that allows you to set the expected size, it receives the min and max size or just the min, in this case it would be [size,1]
   "minimum": [
     {
       args: [["array", "number"]],
