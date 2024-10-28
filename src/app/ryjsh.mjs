@@ -116,6 +116,7 @@ function startServer(jsonPath = "-", port = "8080") {
             res.writeHead(200, { 'Content-Type': "application/json" });
             res.write(JSON.stringify({ message: "Updated" }));
             break;
+          //TODO make path receive a proper depth value
           case "PATCH":
             console.log(`Body: ${bodyData}`);
             try {
@@ -125,10 +126,10 @@ function startServer(jsonPath = "-", port = "8080") {
             }
             switch (opc) {
               case "deep":
-                jsh.patchValue(path, body, true);
+                jsh.patchValue(path, body, 0);
                 break;
               case "json":
-                jsh.patchValue(path, body, false);
+                jsh.patchValue(path, body, 1);
                 break;
             }
             save()

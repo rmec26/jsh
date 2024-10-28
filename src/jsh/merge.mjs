@@ -1,6 +1,6 @@
 //@ts-check
 
-export function merge(a, b, isDeep = false) {
+export function merge(a, b, depth = 1) {
   /** @type {string} */
   let typeA = typeof a;
   /** @type {string} */
@@ -38,10 +38,14 @@ export function merge(a, b, isDeep = false) {
     const keysB = Object.keys(b);
     for (let k of keysA) {
       if (keysB.includes(k)) {
-        if (isDeep) {
-          res[k] = merge(a[k], b[k], true);
+        if (depth) {
+          if (depth > 1) {
+            res[k] = merge(a[k], b[k], depth - 1);
+          } else {
+            res[k] = b[k];
+          }
         } else {
-          res[k] = b[k];
+          res[k] = merge(a[k], b[k], 0);
         }
       } else {
         res[k] = a[k];

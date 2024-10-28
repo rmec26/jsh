@@ -18,9 +18,9 @@ export function typeOf(value) {
 
 export function checkTypeOf(value, type) {
   let valueType = typeOf(value);
-  let typeType = typeOf(type);
+  let typeFormat = typeOf(type);
 
-  if (typeType === "string") {
+  if (typeFormat === "string") {
     type = type.trim().toLowerCase();
 
     if (type === "any") {
@@ -83,8 +83,8 @@ export function checkTypeOf(value, type) {
       }
     }
 
-    return [null, `${valueType} is not ${type}`];
-  } else if (typeType === "array") {
+    return [null, `${valueType} value is not of ${type} type`];
+  } else if (typeFormat === "array") {
     if (type.length < 2) {
       return [null, `${JSON.stringify(type)} is not a valid array type`]
     }
@@ -131,9 +131,9 @@ export function checkTypeOf(value, type) {
       }
       return [null, `${valueType} is not any of the types ${innerTypes.map(t => toString(t)).join(", ")}`];
     } else {
-      return [null, `${mainType} is not a valid main type for an array type`]
+      return [null, `${mainType} is not a valid main type`]
     }
   } else {
-    return [null, "Type must be a string or an array"]
+    return [null, "Type must be in a string or array format"]
   }
 }
