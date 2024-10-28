@@ -96,11 +96,11 @@ export function checkTypeOf(value, type) {
 
         for (let t of innerTypes) {
           t = t.trim().toLowerCase();
-          if (t === "positive" || t === "pos" || t === "+") {
+          if (t === "positive" || t === "pos") {
             isPositive = true;
-          } else if (t === "negative" || t === "neg" || t === "-") {
+          } else if (t === "negative" || t === "neg") {
             isNegative = true;
-          } else if (t === "zero" || t === "z") {
+          } else if (t === "zero") {
             isZero = true;
           } else {
             [...t].forEach(c => {
@@ -108,7 +108,7 @@ export function checkTypeOf(value, type) {
                 isPositive = true;
               } else if (c === "n" || c === "-") {
                 isNegative = true;
-              } else if (c === "z" || c === "0") {
+              } else if (c === "z") {
                 isZero = true;
               }
             })

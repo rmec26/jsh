@@ -1,2 +1,2 @@
-import "./types/types.mjs"
+import "./types/index.mjs"
 import "./functions/functions.mjs"
