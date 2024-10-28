@@ -1,0 +1,4 @@
+#!/bin/sh
+BASEDIR=$(dirname "$0")/..
+
+deno compile --no-config --no-check --allow-net --output $BASEDIR/dist/ryjsh-deno $BASEDIR/src/app/ryjsh.mjs

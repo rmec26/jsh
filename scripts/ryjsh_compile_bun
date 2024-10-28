@@ -1,0 +1,4 @@
+#!/bin/sh
+BASEDIR=$(dirname "$0")/..
+
+bun build --compile --minify --sourcemap $BASEDIR/src/app/ryjsh.mjs --outfile $BASEDIR/dist/ryjsh-bun
