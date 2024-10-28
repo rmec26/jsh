@@ -1,8 +1,9 @@
 //@ts-check
-import * as http from "http"
-import * as url from "url"
-import * as fs from "fs"
-import { JSH, BadCallError, NoValueFoundError } from "../jsh/jsh.mjs"
+import * as http from "node:http"
+import * as url from "node:url"
+import * as fs from "node:fs"
+import { JSH } from "../jsh/jsh.mjs"
+import { BadCallError, NoValueFoundError } from "../jsh/errors.mjs"
 
 /*
 +--------------+

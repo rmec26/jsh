@@ -2,7 +2,8 @@
 
 import test, { beforeEach, describe } from "node:test";
 import assert from "node:assert/strict";
-import { BadCallError, JSH, NoValueFoundError } from "../../src/jsh/jsh.mjs";
+import { JSH } from "../../src/jsh/jsh.mjs";
+import { BadCallError, NoValueFoundError } from "../../src/jsh/errors.mjs";
 import { baseData } from "./baseData.mjs";
 
 describe("JSH Base Function", () => {
