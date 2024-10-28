@@ -203,44 +203,41 @@ For each iteration it sets the variable in the `valuePath` with the current valu
 
 ### `size`
 
-Usage: `(size, value)`
+#### `(size, value)`
 
-Returns size of `value`.
+Returns the size of `value`.
 
-Input:
+If the `value` is an array/object the size is the amount of values it contains.
 
-* `value`: `<object|array|string>` - Value to return the size of.
-  * for `object` the size will be the amount of properties
-  * for `array` the size will be the amount of values
-  * for `string` the size will be the amount of characters
+If the `value` is a string the size is the number of characters it has.
+
+| Param | Type | Description |
+|---|---|---|
+| value | `[or,array,string,object]` | value to the return the size of |
 
 
 
 ### `type`
 
-Usage: `(size, value)`
+#### `(type, value)`
 
 Returns the type of `value`.
 
-Input:
-
-* `value`: `<any>` - Value to return the type of.
-  * for `array` it will return `array` instead of `object`
-  * for `null` it will return `null` instead of `object`
+| Param | Type | Description |
+|---|---|---|
+| value | `any` | value to the return the type of |
 
 
 
 ### `exists`
 
-Usage: `(exists, path)`
+#### `(exists, varPath)`
 
-Returns `true` if a value exists in the `path` given, returns `false` otherwise.
+Returns a `boolean` that indicates if a value exists in the given path.
 
-Input:
-
-* `path`: `<string|array>` - Value of the path to check. The first element must start with `@`
-  * the `string` should have the format `@.level1.value`
-  * the `array` should have the format `["@", "level1", "value"]`
+| Param | Type | Description |
+|---|---|---|
+| varPath | `path` | path to check |
 
 
 

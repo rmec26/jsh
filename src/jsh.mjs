@@ -617,30 +617,24 @@ const jshFuncs = {
     },
     res => res.value
   ),
-  //TODO fix with [or]
   "size": [
     {
-      args: ["array"],
-      fn: array => array.length
-    },
-    {
-      args: ["string"],
-      fn: str => str.length
-    },
-    {
-      args: ["object"],
-      fn: obj => Object.keys(obj).length
-    },
+      args: [["or", "array", "string", "object"]],
+      argsName: ["value"],
+      fn: value => typeOf(value) === "object" ? Object.keys(value).length : value.length
+    }
   ],
   "type": [
     {
       args: ["any"],
+      argsName: ["value"],
       fn: a => typeOf(a)
     }
   ],
   "exists": [
     {
       args: ["path"],
+      argsName: ["varPath"],
       fn: (path, jsh) => {
         try {
           jsh.getValue(path);
@@ -650,11 +644,22 @@ const jshFuncs = {
       }
     }
   ],
-  "merge": {
-    args: 2, fn: (args) => {
-      return merge(args[0], args[1], !!args[2]);
+  "merge": [
+    {
+      args: ["any", "any", "boolean"],
+      argsName: ["obj1", "obj2", "isDeep"],
+      fn: (obj1, obj2, isDeep) => {
+        return merge(obj1, obj2, isDeep);
+      }
+    },
+    {
+      args: ["any", "any"],
+      argsName: ["obj1", "obj2"],
+      fn: (obj1, obj2) => {
+        return merge(obj1, obj2);
+      }
     }
-  },
+  ],
   "jsh": [
     {
       args: ["string"],
@@ -805,45 +810,65 @@ const jshFuncs = {
       fn: array => array.map(v => toString(v)).join("")
     },
   ],
-  "sum": {
-    args: 1, fn: args => {
-      if (args[0] instanceof Array) {
-        return args[0].reduce((sum, v) => {
-          if (typeof v === "number") {
-            sum += v;
-          }
+  "sum": [
+    {
+      args: [["array", "number"]],
+      argsName: ["array"],
+      fn: array => {
+        return array.reduce((sum, v) => {
+          sum += v;
           return sum;
         }, 0);
       }
     }
-  },
-  "slice": {
-    args: 2, fn: args => {
-      if ((args[0] instanceof Array || typeof args[0] === "string") && typeof args[1] === "number") {
-        return args[0].slice(args[1], typeof args[2] === "number" ? args[2] : undefined);
+  ],
+  "slice": [
+    {
+      args: [["or", "array", "string"], "integer", "integer"],
+      argsName: ["value", "start", "end"],
+      fn: (value, start, end) => {
+        return value.slice(start, end);
+      }
+    },
+    {
+      args: [["or", "array", "string"], "integer"],
+      argsName: ["value", "start"],
+      fn: (value, start) => {
+        return value.slice(start);
       }
     }
-  },
-  "minimum": {
-    args: 1, fn: args => {
-      if (args[0] instanceof Array) {
-        let aux = args[0].filter(v => typeof v === "number");
-        if (aux.length) {
-          return Math.min(...aux);
+  ],
+  //TODO consider allowing the type system to check if the array actually has some values
+  // possible ways to implement
+  // filledArray - array has to have some value
+  // notEmpty - more generic type that checks if the given value is not empty, would work with arrays, objects, string. Would be combined with an 'and'
+  // [size min max] - and extension of the notEmpty that allows you to set the expected size, it receives the min and max size or just the min, in this case it would be [size,1]
+  "minimum": [
+    {
+      args: [["array", "number"]],
+      argsName: ["array"],
+      fn: array => {
+        if (array.length) {
+          return Math.min(...array);
+        } else {
+          throw new BadCallError("Empty array given")
         }
       }
     }
-  },
-  "maximum": {
-    args: 1, fn: args => {
-      if (args[0] instanceof Array) {
-        let aux = args[0].filter(v => typeof v === "number");
-        if (aux.length) {
-          return Math.max(...aux);
+  ],
+  "maximum": [
+    {
+      args: [["array", "number"]],
+      argsName: ["array"],
+      fn: array => {
+        if (array.length) {
+          return Math.max(...array);
+        } else {
+          throw new BadCallError("Empty array given")
         }
       }
     }
-  },
+  ],
 };
 
 jshFuncs["del"] = jshFuncs["delete"];
@@ -890,7 +915,7 @@ function generateCallError(fnName, args, rest, error) {
 
 export class JSH {
 
-  constructor(system = "JSH", functions) {
+  constructor(system = "JSH", functions = {}) {
     this.system = system;
     this.memory = { system };
     this.functions = { ...jshFuncs };
@@ -1146,19 +1171,7 @@ export class JSH {
     if (!jshFuncs[fn]) {
       throw new BadCallError(`Function '${fn}' doesn't exist.`)
     }
-    //uses the new function format
-    if (jshFuncs[fn] instanceof Array) {
-      return this.processCallInput(fn, args, jshFuncs[fn]);
-    } else {//TODO remove this after porting all functions
-      if (!jshFuncs[fn].raw) {
-        args = await this.runJsh({ type: "list", input: args });
-      }
-      if (args.length >= jshFuncs[fn].args) {
-        return jshFuncs[fn].fn(args, this);
-      } else {
-        throw new BadCallError(`Not enough arguments for function '${fn}'`);
-      }
-    }
+    return this.processCallInput(fn, args, jshFuncs[fn]);
   }
 
   /**

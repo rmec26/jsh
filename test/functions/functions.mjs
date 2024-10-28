@@ -14,130 +14,140 @@ describe("JSH Base Function", () => {
   })
 
   describe("get", () => {
-    test("should return the desired value if given a valid path string", async () => {
-      assert.strictEqual(await jsh.evalJsh(`(get root.books.book1.name)`), "Book 1");
-    });
-    test("should return the desired value if given a valid path array", async () => {
-      assert.strictEqual(await jsh.evalJsh(`(get [root,books,book2,price])`), 15.75);
-    });
-    test("should throw a NoValueFoundError if the given path string doesn't exist", () => {
-      assert.rejects(async () => await jsh.evalJsh(`(get invalidPath)`), (err) => {
-        assert(err instanceof NoValueFoundError);
-        assert.strictEqual(err.message, "The value invalidPath doesn't exist.");
-        return true;
+    describe("(get, getPath)", () => {
+      test("should return the desired value if given a valid path string", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(get root.books.book1.name)`), "Book 1");
       });
-    });
-    test("should throw a NoValueFoundError if the given path array doesn't exist", () => {
-      assert.rejects(async () => await jsh.evalJsh(`(get [invalid,path])`), (err) => {
-        assert(err instanceof NoValueFoundError);
-        assert.strictEqual(err.message, "The value invalid doesn't exist.");
-        return true;
+      test("should return the desired value if given a valid path array", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(get [root,books,book2,price])`), 15.75);
       });
-    });
-    test("should throw a BadCallError if the given path array is empty", async () => {
-      assert.rejects(async () => await jsh.evalJsh(`(get [])`), (err) => {
-        assert(err instanceof BadCallError);
-        assert.strictEqual(err.message, "Error on 'get':\n  For (get, path): Argument 0 is invalid: Path cannot be an empty array.");
-        return true;
+      test("should throw a NoValueFoundError if the given path string doesn't exist", () => {
+        assert.rejects(async () => await jsh.evalJsh(`(get invalidPath)`), (err) => {
+          assert(err instanceof NoValueFoundError);
+          assert.strictEqual(err.message, "The value invalidPath doesn't exist.");
+          return true;
+        });
+      });
+      test("should throw a NoValueFoundError if the given path array doesn't exist", () => {
+        assert.rejects(async () => await jsh.evalJsh(`(get [invalid,path])`), (err) => {
+          assert(err instanceof NoValueFoundError);
+          assert.strictEqual(err.message, "The value invalid doesn't exist.");
+          return true;
+        });
+      });
+      test("should throw a BadCallError if the given path array is empty", async () => {
+        assert.rejects(async () => await jsh.evalJsh(`(get [])`), (err) => {
+          assert(err instanceof BadCallError);
+          assert.strictEqual(err.message, "Error on 'get':\n  For (get, path): Argument 0 is invalid: Path cannot be an empty array.");
+          return true;
+        });
       });
     });
   });
 
   describe("set", () => {
-    test("should set the desired value if given a valid path string", async () => {
-      assert.strictEqual(await jsh.evalJsh(`(set testValue "this is a test")`), undefined);
-      assert.strictEqual(jsh.getValue("testValue"), "this is a test");
-    });
-
-    test("should set the desired value if the parent value is an object", async () => {
-      assert.strictEqual(await jsh.evalJsh(`(set root.values.obj.test 1234)`), undefined);
-      assert.strictEqual(jsh.getValue("root.values.obj.test"), 1234);
-    });
-
-    test("should set the desired value if the parent value is an array", async () => {
-      assert.strictEqual(await jsh.evalJsh(`(set root.values.array.0 445)`), undefined);
-      assert.strictEqual(jsh.getValue("root.values.array.0"), 445);
-    });
-
-    test("should add null values if the desired value goes over the size of the parent and the parent value is an array", async () => {
-      assert.strictEqual(await jsh.evalJsh(`(set root.values.array.+2 555)`), undefined);
-      assert.deepStrictEqual(jsh.getValue("root.values.array"), [...baseData().values.array, null, 555]);
-    });
-
-    test("should throw a NoValueFoundError if the parent value doesn't exist", () => {
-      assert.rejects(async () => await jsh.evalJsh(`(set root.values.obj.noVal.hi 999)`), (err) => {
-        assert(err instanceof NoValueFoundError);
-        assert.strictEqual(err.message, "The value root.values.obj.noVal doesn't exist.");
-        return true;
+    describe("(set, setPath, newValue)", () => {
+      test("should set the desired value if given a valid path string", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(set testValue "this is a test")`), undefined);
+        assert.strictEqual(jsh.getValue("testValue"), "this is a test");
       });
-    });
 
-    test("should throw a BadCallError if trying to set a level in a string parent value.", () => {
-      assert.rejects(async () => await jsh.evalJsh(`(set root.values.str.test 1234)`), (err) => {
-        assert(err instanceof BadCallError);
-        assert.strictEqual(err.message, "The value 'root.values.str' is not an object/array.");
-        return true;
+      test("should set the desired value if the parent value is an object", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(set root.values.obj.test 1234)`), undefined);
+        assert.strictEqual(jsh.getValue("root.values.obj.test"), 1234);
       });
-    });
 
-    test("should throw a BadCallError if trying to set a level in a number parent value.", () => {
-      assert.rejects(async () => await jsh.evalJsh(`(set root.values.num.test 1234)`), (err) => {
-        assert(err instanceof BadCallError);
-        assert.strictEqual(err.message, "The value 'root.values.num' is not an object/array.");
-        return true;
+      test("should set the desired value if the parent value is an array", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(set root.values.array.0 445)`), undefined);
+        assert.strictEqual(jsh.getValue("root.values.array.0"), 445);
       });
-    });
 
-    test("should throw a BadCallError if trying to set a level in a boolean parent value.", () => {
-      assert.rejects(async () => await jsh.evalJsh(`(set root.values.bool.test 1234)`), (err) => {
-        assert(err instanceof BadCallError);
-        assert.strictEqual(err.message, "The value 'root.values.bool' is not an object/array.");
-        return true;
+      test("should add null values if the desired value goes over the size of the parent and the parent value is an array", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(set root.values.array.+2 555)`), undefined);
+        assert.deepStrictEqual(jsh.getValue("root.values.array"), [...baseData().values.array, null, 555]);
       });
-    });
 
-    test("should throw a BadCallError if trying to set a level in a null parent value.", () => {
-      assert.rejects(async () => await jsh.evalJsh(`(set root.values.nullVal.test 1234)`), (err) => {
-        assert(err instanceof BadCallError);
-        assert.strictEqual(err.message, "The value 'root.values.nullVal' is not an object/array.");
-        return true;
+      test("should throw a NoValueFoundError if the parent value doesn't exist", () => {
+        assert.rejects(async () => await jsh.evalJsh(`(set root.values.obj.noVal.hi 999)`), (err) => {
+          assert(err instanceof NoValueFoundError);
+          assert.strictEqual(err.message, "The value root.values.obj.noVal doesn't exist.");
+          return true;
+        });
       });
-    });
 
-    test("should throw a BadCallError if trying to set a non number level in an array parent value.", () => {
-      assert.rejects(async () => await jsh.evalJsh(`(set root.values.array.test 1234)`), (err) => {
-        assert(err instanceof BadCallError);
-        assert.strictEqual(err.message, "The level 'test' is not valid for the array 'root.values.array'.");
-        return true;
+      test("should throw a BadCallError if trying to set a level in a string parent value.", () => {
+        assert.rejects(async () => await jsh.evalJsh(`(set root.values.str.test 1234)`), (err) => {
+          assert(err instanceof BadCallError);
+          assert.strictEqual(err.message, "The value 'root.values.str' is not an object/array.");
+          return true;
+        });
+      });
+
+      test("should throw a BadCallError if trying to set a level in a number parent value.", () => {
+        assert.rejects(async () => await jsh.evalJsh(`(set root.values.num.test 1234)`), (err) => {
+          assert(err instanceof BadCallError);
+          assert.strictEqual(err.message, "The value 'root.values.num' is not an object/array.");
+          return true;
+        });
+      });
+
+      test("should throw a BadCallError if trying to set a level in a boolean parent value.", () => {
+        assert.rejects(async () => await jsh.evalJsh(`(set root.values.bool.test 1234)`), (err) => {
+          assert(err instanceof BadCallError);
+          assert.strictEqual(err.message, "The value 'root.values.bool' is not an object/array.");
+          return true;
+        });
+      });
+
+      test("should throw a BadCallError if trying to set a level in a null parent value.", () => {
+        assert.rejects(async () => await jsh.evalJsh(`(set root.values.nullVal.test 1234)`), (err) => {
+          assert(err instanceof BadCallError);
+          assert.strictEqual(err.message, "The value 'root.values.nullVal' is not an object/array.");
+          return true;
+        });
+      });
+
+      test("should throw a BadCallError if trying to set a non number level in an array parent value.", () => {
+        assert.rejects(async () => await jsh.evalJsh(`(set root.values.array.test 1234)`), (err) => {
+          assert(err instanceof BadCallError);
+          assert.strictEqual(err.message, "The level 'test' is not valid for the array 'root.values.array'.");
+          return true;
+        });
       });
     });
   });
 
   describe("delete", () => {
-    test("should delete and return the desired value from an object if given a valid path string", async () => {
-      await jsh.evalJsh(`(set test {a:1234,b:"abc"})`)
-      assert.strictEqual(await jsh.evalJsh(`(delete test.a)`), 1234);
-      assert.deepStrictEqual(jsh.getValue("test"), { b: "abc" });
-    });
+    describe("(delete, deletePath)", () => {
+      test("should delete and return the desired value from an object if given a valid path string", async () => {
+        await jsh.evalJsh(`(set test {a:1234,b:"abc"})`)
+        assert.strictEqual(await jsh.evalJsh(`(delete test.a)`), 1234);
+        assert.deepStrictEqual(jsh.getValue("test"), { b: "abc" });
+      });
 
-    test("should delete and return the desired value from an array if given a valid path string", async () => {
-      await jsh.evalJsh(`(set test [111,222,333])`)
-      assert.strictEqual(await jsh.evalJsh(`(delete test.1)`), 222);
-      assert.deepStrictEqual(jsh.getValue("test"), [111, 333]);
+      test("should delete and return the desired value from an array if given a valid path string", async () => {
+        await jsh.evalJsh(`(set test [111,222,333])`)
+        assert.strictEqual(await jsh.evalJsh(`(delete test.1)`), 222);
+        assert.deepStrictEqual(jsh.getValue("test"), [111, 333]);
+      });
     });
   });
 
   describe("run", () => {
-    test("should run all given inputs and return nothing", async () => {
-      assert.strictEqual(await jsh.evalJsh(`(run (set aaa neat) (get root))`), undefined);
-      assert.strictEqual(jsh.getValue("aaa"), "neat");
+    describe("(run, ...input)", () => {
+      test("should run all given inputs and return nothing", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(run (set aaa neat) (get root))`), undefined);
+        assert.strictEqual(jsh.getValue("aaa"), "neat");
+      });
     });
   });
 
   describe("runr", () => {
-    test("should run all given inputs and return the last returned value", async () => {
-      assert.strictEqual(await jsh.evalJsh(`(runr "hello" (get root.values.num) (set aaa yo))`), 123);
-      assert.strictEqual(jsh.getValue("aaa"), "yo");
+    describe("(runr, ...input)", () => {
+      test("should run all given inputs and return the last returned value", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(runr "hello" (get root.values.num) (set aaa yo))`), 123);
+        assert.strictEqual(jsh.getValue("aaa"), "yo");
+      });
     });
   });
 
@@ -359,6 +369,61 @@ describe("JSH Base Function", () => {
       });
       test("should only include values that were returned", async () => {
         assert.deepStrictEqual(await jsh.evalJsh(`(for @root.list val (if (eq @val.id "333") @val.name))`), "Test 3");
+      });
+    });
+  });
+
+  describe("size", () => {
+    describe("(size, value)", () => {
+      test("should return the correct size for a given string", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(size "this is a test")`), 14);
+      });
+      test("should return the 0 for an empty string", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(size "")`), 0);
+      });
+      test("should return the correct size for a given array", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(size [1,6,8])`), 3);
+      });
+      test("should return the 0 for an empty array", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(size [])`), 0);
+      });
+      test("should return the correct size for a given object", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(size {size:10})`), 1);
+      });
+      test("should return the 0 for an empty object", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(size {})`), 0);
+      });
+    });
+  });
+
+  describe("type", () => {
+    describe("(type, value)", () => {
+      test("should return the correct type for a number", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(type 123)`), "number");
+      });
+      test("should return the correct type for a boolean", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(type true)`), "boolean");
+      });
+      test("should return the correct type for a string", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(type "this is a test")`), "string");
+      });
+      test("should return the correct type for an empty string", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(type "")`), "string");
+      });
+      test("should return the correct type for a null", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(type null)`), "null");
+      });
+      test("should return the correct type for an array", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(type [4,6,"test"])`), "array");
+      });
+      test("should return the correct type for an empty array", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(type [])`), "array");
+      });
+      test("should return the correct type for an object", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(type {hello:"hi"})`), "object");
+      });
+      test("should return the correct type for an empty object", async () => {
+        assert.strictEqual(await jsh.evalJsh(`(type {})`), "object");
       });
     });
   });
