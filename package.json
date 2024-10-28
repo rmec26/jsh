@@ -3,7 +3,8 @@
   "type": "module",
   "scripts": {
     "test": "node test/index.mjs",
-    "build:ryjsh:dev": "bun build --compile --minify --sourcemap src/ryjsh.mjs --outfile ryjsh",
-    "ryjsh": "node src/ryjsh.mjs "
+    "build:ryjsh:dev": "bun build --compile --minify --sourcemap src/app/ryjsh.mjs --outfile ryjsh",
+    "ryjsh": "node src/app/ryjsh.mjs",
+    "ryj": "node src/app/ryj.js "
   }
 }

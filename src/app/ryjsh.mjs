@@ -2,7 +2,7 @@
 import * as http from "http"
 import * as url from "url"
 import * as fs from "fs"
-import { JSH, BadCallError, NoValueFoundError } from "./jsh.mjs"
+import { JSH, BadCallError, NoValueFoundError } from "../jsh/jsh.mjs"
 
 /*
 +--------------+

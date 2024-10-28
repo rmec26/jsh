@@ -2,7 +2,7 @@
 
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
-import { checkTypeOf } from "../../src/jsh.mjs";
+import { checkTypeOf } from "../../src/jsh/jsh.mjs";
 
 
 describe("JSH Type Checker", () => {
