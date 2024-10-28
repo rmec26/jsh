@@ -2,8 +2,7 @@
 
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
-import { checkTypeOf } from "../../src/jsh/jsh.mjs";
-
+import { checkTypeOf } from "../../src/jsh/types.mjs";
 
 describe("JSH Type Checker", () => {
   const testValues = [

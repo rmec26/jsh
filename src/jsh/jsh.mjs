@@ -1,67 +1,13 @@
 //@ts-check
 
+import { toString, toBoolean, toNumber, toInteger } from "./converters.mjs";
+import { merge } from "./merge.mjs";
+import { processPathInput } from "./path.mjs";
+import { checkTypeOf, typeOf } from "./types.mjs";
+import { isEqual } from "./utils.mjs";
 
 export class BadCallError extends Error { };
 export class NoValueFoundError extends Error { };
-
-function merge(a, b, isDeep = false) {
-  /** @type {string} */
-  let typeA = typeof a;
-  /** @type {string} */
-  let typeB = typeof b;
-
-  if (typeA !== "object" || typeA !== typeB) {
-    return b;
-  }
-  //They are both objects here
-
-  if (a) {
-    if (a instanceof Array) {
-      typeA = "array";
-    }
-  } else {
-    typeA = "null";
-  }
-
-
-  if (b) {
-    if (b instanceof Array) {
-      typeB = "array";
-    }
-  } else {
-    typeB = "null";
-  }
-
-  if (typeA === "null" || typeA !== typeB) {
-    return b;
-  }
-  //They are both object
-  if (typeA === "object") {
-    let res = {};
-    const keysA = Object.keys(a);
-    const keysB = Object.keys(b);
-    for (let k of keysA) {
-      if (keysB.includes(k)) {
-        if (isDeep) {
-          res[k] = merge(a[k], b[k], true);
-        } else {
-          res[k] = b[k];
-        }
-      } else {
-        res[k] = a[k];
-      }
-    }
-    for (let k of keysB) {
-      if (!keysA.includes(k)) {
-        res[k] = b[k];
-      }
-    }
-    return res;
-  } else {//they are both arrays
-    return a.concat(b);
-  }
-}
-
 
 function processParserBuffer(state) {
   if (state.buffer) {
@@ -88,8 +34,6 @@ function processParserBuffer(state) {
     state.isReading = false;
   }
 }
-
-
 
 function parseString(state, finalValue) {
   let buffer = "";
@@ -248,8 +192,6 @@ function parseJsh(input) {
         }
       }
     }
-
-
   }
   processParserBuffer(state);
 
@@ -260,109 +202,6 @@ function parseJsh(input) {
   return state.curr;
 }
 
-
-
-function toBoolean(value) {
-  if (value === undefined) {
-    return;
-  }
-  if (typeof value === "object") {
-    if (value) {
-      if (value instanceof Array) {
-        return !!value.length;
-      } else {
-        return !!Object.keys(value).length;
-      }
-    } else {
-      return false;
-    }
-  } else {
-    return !!value;
-  }
-}
-
-function toString(value) {
-  if (value === undefined) {
-    return;
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  } else {
-    return value.toString();
-  }
-}
-
-function toNumber(value) {
-  if (value === undefined) {
-    return;
-  }
-  const type = typeof value;
-  if (type === "object") {
-    //This imitates the logic on the toBool
-    if (value) {
-      if (value instanceof Array) {
-        return value.length ? 1 : 0;
-      } else {
-        return Object.keys(value).length ? 1 : 0;
-      }
-    } else {
-      return 0;
-    }
-  } else if (type === "boolean") {
-    return value ? 1 : 0;
-  } else if (type === "string") {
-    let res = Number(value);
-    if (!Number.isNaN(res)) {
-      return res;
-    }
-  } else {
-    return value;
-  }
-}
-
-function toInteger(value) {
-  let res = Number(value);
-  if (value !== undefined) {
-    return Math.trunc(res);
-  }
-}
-
-function isEqual(a, b) {
-  const typeA = typeof a;
-  const typeB = typeof a;
-
-  if (typeA === "object" && typeB === "object") {
-    if (a) {
-      if (b) {
-        const aIsArray = a instanceof Array;
-        const bIsArray = b instanceof Array;
-        if (aIsArray === bIsArray) {// they are the same type
-          if (aIsArray) {//they are arrays
-            if (a.length === b.length) {
-              return a.every((v, i) => isEqual(v, b[i]));
-            }
-            return false;
-          } else {//they are objects
-            let keysA = Object.keys(a);
-            let keysB = Object.keys(b);
-            if (keysA.length === keysB.length) {
-              return keysA.every(k => b[k] !== undefined && isEqual(a[k], b[k]));
-            }
-            return false;
-          }
-        } else {
-          return false;
-        }
-      } else {//a is obj or array but b is null
-        return false;
-      }
-    } else {//a is null here
-      return !b
-    }
-  } else {
-    return a === b;
-  }
-}
 
 function generateIterator(iteratorStart, iteratorProcessor, iteratorEnd) {
   return [
@@ -404,144 +243,7 @@ function generateIterator(iteratorStart, iteratorProcessor, iteratorEnd) {
       }
     }
   ]
-
 }
-
-export function typeOf(value) {
-  /** @type {string} */
-  let type = typeof value;
-  if (type === "object") {
-    if (value === null) {
-      type = "null";
-    } else if (value instanceof Array) {
-      type = "array";
-    }
-  }
-  return type;
-}
-
-export function checkTypeOf(value, type) {
-  let valueType = typeOf(value);
-  let typeType = typeOf(type);
-
-  if (typeType === "string") {
-    type = type.trim().toLowerCase();
-
-    if (type === "any") {
-      return [value];
-    }
-
-    if (valueType === type) {
-      return [value];
-    }
-
-    if (type === "path") {
-      try {
-        return [JSH.processPathInput(value)]
-      } catch (e) {
-        return [null, e.message];
-      }
-    }
-
-    if (type === "integer") {
-      if (valueType === "number") {
-        if (Math.trunc(value) === value) {
-          return [value];
-        }
-        return [null, "Is a number but not an integer"];
-      } else {
-        return [null, `${valueType} is not a number`];
-      }
-    }
-
-    if (type === "positive") {
-      if (valueType === "number") {
-        if (value > 0) {
-          return [value];
-        }
-        return [null, "Is a number but not positive"];
-      } else {
-        return [null, `${valueType} is not a number`];
-      }
-    }
-
-    if (type === "negative") {
-      if (valueType === "number") {
-        if (value < 0) {
-          return [value];
-        }
-        return [null, "Is a number but not negative"];
-      } else {
-        return [null, `${valueType} is not a number`];
-      }
-    }
-
-    if (type === "zero") {
-      if (valueType === "number") {
-        if (value === 0) {
-          return [value];
-        }
-        return [null, "Is a number but not zero"];
-      } else {
-        return [null, `${valueType} is not a number`];
-      }
-    }
-
-    return [null, `${valueType} is not ${type}`];
-  } else if (typeType === "array") {
-    if (type.length < 2) {
-      return [null, `${JSON.stringify(type)} is not a valid array type`]
-    }
-    let [mainType, ...innerTypes] = type;
-    mainType = mainType.trim().toLowerCase();
-    if (mainType === "array") {
-      if (valueType === "array") {
-        for (const [k, v] of Object.entries(value)) {
-          let result = checkTypeOf(v, innerTypes[0]);
-          if (result.length > 1) {
-            return [null, `Value ${k} is not of the type ${toString(innerTypes[0])}`];
-          }
-        }
-        return [value];
-      } else {
-        return [null, `${valueType} is not an array`];
-      }
-    } else if (mainType === "object") {
-      if (valueType === "object") {
-        for (const [k, v] of Object.entries(value)) {
-          let result = checkTypeOf(v, innerTypes[0]);
-          if (result.length > 1) {
-            return [null, `Value ${k} is not of the type ${toString(innerTypes[0])}`];
-          }
-        }
-        return [value];
-      } else {
-        return [null, `${valueType} is not an object`];
-      }
-    } else if (mainType === "and") {
-      for (const t of innerTypes) {
-        let result = checkTypeOf(value, t);
-        if (result.length > 1) {
-          return result;
-        }
-      }
-      return [value];
-    } else if (mainType === "or") {
-      for (const t of innerTypes) {
-        let result = checkTypeOf(value, t);
-        if (result.length === 1) {
-          return result;
-        }
-      }
-      return [null, `${valueType} is not any of the types ${innerTypes.map(t => toString(t)).join(", ")}`];
-    } else {
-      return [null, `${mainType} is not a valid main type for an array type`]
-    }
-  } else {
-    return [null, "Type must be a string or an array"]
-  }
-}
-
 
 const jshFuncs = {
   "get": [
@@ -914,7 +616,6 @@ function generateCallError(fnName, args, rest, error) {
 
 
 export class JSH {
-
   constructor(system = "JSH", functions = {}) {
     this.system = system;
     this.memory = { system };
@@ -941,42 +642,6 @@ export class JSH {
     for (let [fnName, fn] of toSet) {
       this.functions[fnName] = structuredClone(fn);
     }
-  }
-
-  static processVariableToList(input) {
-    let levelList = [];
-    let buffer = "";
-    let pos = 0;
-    while (pos < input.length) {
-      let c = input[pos];
-      pos++;
-      if (c == ".") {
-        levelList.push(buffer);
-        buffer = "";
-      } else if (c == "\\") {
-        if (pos < input.length) {
-          buffer += input[pos];
-          pos++;
-        }
-      } else {
-        buffer += c;
-      }
-    }
-    //The fact that it can put the last buffer even if empty here is on purpose
-    levelList.push(buffer);
-    return levelList;
-  }
-
-  static processPathInput(path) {
-    if (typeof path === "string") {
-      return this.processVariableToList(path);
-    } else if (path instanceof Array) {
-      if (!path.length) {
-        throw new BadCallError("Path cannot be an empty array.");
-      }
-      return path.map(v => v.toString());
-    }
-    throw new BadCallError("Path is not of the type string or array.");
   }
 
   /**
@@ -1078,19 +743,19 @@ export class JSH {
   }
 
   getValue(path) {
-    return this._getValue(JSH.processPathInput(path));
+    return this._getValue(processPathInput(path));
   }
 
   setValue(path, value,) {
-    this._setValue(JSH.processPathInput(path), value);
+    this._setValue(processPathInput(path), value);
   }
 
   patchValue(path, value, isDeep) {
-    this._patchValue(JSH.processPathInput(path), value, isDeep);
+    this._patchValue(processPathInput(path), value, isDeep);
   }
 
   deleteValue(path) {
-    return this._deleteValue(JSH.processPathInput(path));
+    return this._deleteValue(processPathInput(path));
   }
 
   resetMemory(...valuesToKeep) {
@@ -1241,5 +906,3 @@ export class JSH {
     return this.runJsh(parseJsh(input))
   }
 }
-
-
